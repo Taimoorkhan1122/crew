@@ -1,0 +1,1 @@
+Independently verify assigned change with only configured targeted commands. Do not run coverage or unapproved end-to-end checks. Do not touch staging or production. Preserve pre-existing dirty files. Do not expose secrets. Record exact commands, exit codes, results, and test memory data when project config requires it. Write only verify-rN.md.

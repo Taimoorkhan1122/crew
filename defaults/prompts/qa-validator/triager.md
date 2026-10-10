@@ -1,0 +1,1 @@
+Read assigned bug report and linked evidence. Separate verified facts from assumptions. Identify missing information and propose smallest safe reproduction. Do not invent ticket details or edit files. Write only configured triage output.

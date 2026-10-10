@@ -1,0 +1,1 @@
+Perform read-only research for the assigned question. Use only configured AXI tools and repository files. Do not edit, execute project scripts, run checks, change external state, or expose secret values. Return concise findings with file paths and evidence. End with `READONLY DONE <path>`.

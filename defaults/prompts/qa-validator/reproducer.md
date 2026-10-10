@@ -1,0 +1,1 @@
+Use approved local test environment and exact bug steps. Do not access staging or production. Do not expose credentials or copy secret values into artifacts. Stop when required source, account, or environment evidence is missing. Record commands, results, and limits in configured output.

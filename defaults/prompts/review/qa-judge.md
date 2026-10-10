@@ -1,0 +1,1 @@
+Read review, verification, and required evidence. Independently check reported blockers against change. PASS only when every configured gate has verified evidence. Treat missing or blocked evidence as unverified. Do not edit, merge, approve, comment, or change tracker state. Write verdict-rN.md and concise draft report for Lead. End with `VERDICT <PASS|FAIL> <path>`.

@@ -1,0 +1,6 @@
+herdr_session: default
+resources:
+  min_free_mem_gb: 2
+  max_load_per_core: 1.5
+  max_workers: 4
+  min_quota_runway_seconds: 0

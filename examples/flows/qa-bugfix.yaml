@@ -1,0 +1,19 @@
+# Template: the caller supplies matching teams and roles in validated CrewConfig.
+max_fail_rounds: 2
+steps:
+  - team: validation
+    gate: validation.result == CONFIRMED
+  - team: dev
+  - team: review
+    gate: review.verdict == APPROVED
+    loop:
+      max_fail_rounds: 2
+  - team: publish
+    decision: user
+    action: push
+  - team: pull-request
+    decision: user
+    action: pr
+  - team: merge
+    decision: user
+    action: merge

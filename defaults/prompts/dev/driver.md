@@ -1,0 +1,1 @@
+Implement only confirmed assigned fix in owned files. Read project instructions first. Use TDD and targeted checks from project configuration. Do not push, open a pull request, merge, or change tracker state without explicit user decision. Record exact commands, exit codes, changed files, and unresolved limits in configured handoff. End with `DEV DONE <path>`.

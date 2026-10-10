@@ -1,0 +1,1 @@
+Review bug.md, triage.md, and repro.md. Write validation.md with exactly one result: CONFIRMED, NOT REPRODUCED, or NEEDS INFO. Include evidence, root cause when established, and suggested fix. Mark every unknown. Do not infer a live result from mocked checks. End with `VALIDATION DONE <path>`.

@@ -1,0 +1,29 @@
+qa-validator:
+  roles: [triager, reproducer, reporter]
+  handoffs:
+    triager: {in: 'tickets/{ticket}/bug.md', out: 'tickets/{ticket}/triage.md'}
+    reproducer: {in: 'tickets/{ticket}/triage.md', out: 'tickets/{ticket}/repro.md'}
+    reporter: {in: 'tickets/{ticket}/repro.md', out: 'tickets/{ticket}/validation.md'}
+  done_marker: 'VALIDATION DONE'
+  axis: [chrome-devtools-axi, gh-axi, pg-axi, redis-axi]
+dev:
+  roles: [driver, navigator]
+  handoffs:
+    driver: {in: 'tickets/{ticket}/validation.md', out: 'tickets/{ticket}/pr.md'}
+    navigator: {in: 'tickets/{ticket}/pr.md', out: 'tickets/{ticket}/nav-review.md'}
+  done_marker: 'DEV DONE'
+  axis: [gh-axi, pg-axi, redis-axi]
+review:
+  roles: [qa-reviewer, qa-verifier, qa-judge]
+  handoffs:
+    qa-reviewer: {in: 'tickets/{ticket}', out: 'tickets/{ticket}/review-r{round}.md'}
+    qa-verifier: {in: 'tickets/{ticket}', out: 'tickets/{ticket}/verify-r{round}.md'}
+    qa-judge: {in: 'tickets/{ticket}/review-r{round}.md', out: 'tickets/{ticket}/verdict-r{round}.md'}
+  done_marker: 'VERDICT'
+  axis: [gh-axi, chrome-devtools-axi]
+readonly:
+  roles: [readonly-worker]
+  handoffs:
+    readonly-worker: {in: 'tickets/{ticket}/bug.md', out: 'tickets/{ticket}/research.md'}
+  done_marker: 'READONLY DONE'
+  axis: [gh-axi, pg-axi]

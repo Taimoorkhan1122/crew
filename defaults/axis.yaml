@@ -1,0 +1,72 @@
+gh-axi:
+  bin: gh-axi
+  env: [GH_TOKEN]
+  install: brew install gok/axi/gh-axi
+  write_gate: GH_READ_ONLY
+  skill: null
+chrome-devtools-axi:
+  bin: chrome-devtools-axi
+  env: []
+  install: brew install gok/axi/chrome-devtools-axi
+  write_gate: null
+  skill: null
+lavish-axi:
+  bin: lavish-axi
+  env: []
+  install: brew install gok/axi/lavish-axi
+  write_gate: null
+  skill: null
+quota-axi:
+  bin: quota-axi
+  env: []
+  install: null
+  write_gate: null
+  skill: null
+pg-axi:
+  bin: pg-axi
+  env: [DATABASE_URL]
+  install: null
+  write_gate: DATABASE_READ_ONLY
+  skill: null
+redis-axi:
+  bin: redis-axi
+  env: [REDIS_URL]
+  install: null
+  write_gate: REDIS_READ_ONLY
+  skill: null
+docker-axi:
+  bin: docker-axi
+  env: []
+  install: null
+  write_gate: null
+  skill: null
+supabase-axi:
+  bin: supabase-axi
+  env: [SUPABASE_ACCESS_TOKEN]
+  install: null
+  write_gate: SUPABASE_READ_ONLY
+  skill: null
+vercel-axi:
+  bin: vercel-axi
+  env: [VERCEL_TOKEN]
+  install: null
+  write_gate: VERCEL_READ_ONLY
+  skill: null
+npm-axi:
+  bin: npm-axi
+  env: []
+  install: null
+  write_gate: null
+  skill: null
+playwright-axi:
+  bin: playwright-axi
+  env: []
+  install: null
+  write_gate: null
+  skill: null
+axi-axi:
+  bin: axi-axi
+  env: []
+  install: null
+  write_gate: null
+  skill: null

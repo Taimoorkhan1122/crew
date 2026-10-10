@@ -1,0 +1,18 @@
+max_fail_rounds: 2
+steps:
+  - team: qa-validator
+    gate: validation.result == CONFIRMED
+  - team: dev
+  - team: review
+    gate: review.verdict == PASS
+    loop:
+      max_fail_rounds: 2
+  - team: dev
+    decision: user
+    action: push
+  - team: dev
+    decision: user
+    action: pr
+  - team: dev
+    decision: user
+    action: merge

@@ -1,0 +1,31 @@
+[project]
+name = "crew-runner"
+version = "0.1.0"
+description = "A config-driven, herdr-based agent team runner"
+requires-python = ">=3.11"
+dependencies = [
+    "psutil>=6",
+    "pydantic>=2",
+    "PyYAML>=6",
+]
+
+[project.scripts]
+crew = "crew.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["crew*"]
+
+[tool.setuptools.data-files]
+"share/crew" = ["defaults/axis.yaml", "defaults/config.yaml", "defaults/roles.yaml", "defaults/teams.yaml"]
+"share/crew/flows" = ["defaults/flows/qa-bugfix.yaml", "defaults/flows/readonly.yaml"]
+"share/crew/prompts/dev" = ["defaults/prompts/dev/driver.md", "defaults/prompts/dev/navigator.md"]
+"share/crew/prompts" = ["defaults/prompts/lead.md", "defaults/prompts/orchestrator.md", "defaults/prompts/readonly.md"]
+"share/crew/prompts/qa-validator" = ["defaults/prompts/qa-validator/reporter.md", "defaults/prompts/qa-validator/reproducer.md", "defaults/prompts/qa-validator/triager.md"]
+"share/crew/prompts/review" = ["defaults/prompts/review/qa-judge.md", "defaults/prompts/review/qa-reviewer.md", "defaults/prompts/review/qa-verifier.md"]

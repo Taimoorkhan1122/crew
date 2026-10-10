@@ -1,0 +1,121 @@
+lead:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: false
+  prompt: prompts/lead.md
+  skills: []
+  axis: [lavish-axi, quota-axi]
+orchestrator:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: false
+  prompt: prompts/orchestrator.md
+  skills: []
+  axis: [quota-axi, gh-axi]
+triager:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: true
+  prompt: prompts/qa-validator/triager.md
+  skills: [qa-bug-validator, systematic-debugging]
+  axis: [chrome-devtools-axi, gh-axi, pg-axi, redis-axi]
+reproducer:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: true
+  prompt: prompts/qa-validator/reproducer.md
+  skills: [qa-bug-validator, systematic-debugging]
+  axis: [chrome-devtools-axi, gh-axi, pg-axi, redis-axi]
+reporter:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: true
+  prompt: prompts/qa-validator/reporter.md
+  skills: [qa-bug-validator]
+  axis: [gh-axi]
+driver:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: false
+  prompt: prompts/dev/driver.md
+  skills: [test-driven-development, ponytail, nestjs-best-practices, react-production-engineering]
+  axis: [gh-axi, pg-axi, redis-axi]
+navigator:
+  cli: claude
+  herdr_kind: claude
+  model: opus
+  effort: high
+  args: [--model, '{model}', --effort, '{effort}']
+  mode: interactive
+  readonly: true
+  prompt: prompts/dev/navigator.md
+  skills: [ponytail-review, nestjs-best-practices, react-production-engineering]
+  axis: [gh-axi, pg-axi, redis-axi]
+qa-reviewer:
+  cli: opencode
+  herdr_kind: opencode
+  model: opencode-go/deepseek-v4.1-flash
+  effort: high
+  args: [run, --agent, qa-reviewer, --auto, -m, '{model}#{effort}', --title, '{prompt}', '{prompt}']
+  mode: oneshot
+  readonly: true
+  prompt: prompts/review/qa-reviewer.md
+  skills: [ponytail-review, nestjs-best-practices, react-production-engineering]
+  axis: [gh-axi, chrome-devtools-axi]
+qa-verifier:
+  cli: opencode
+  herdr_kind: opencode
+  model: opencode-go/deepseek-v4.1-flash
+  effort: high
+  args: [run, --agent, qa-verifier, --auto, -m, '{model}#{effort}', --title, '{prompt}', '{prompt}']
+  mode: oneshot
+  readonly: true
+  prompt: prompts/review/qa-verifier.md
+  skills: [verification-before-completion, react-quality-engineering, test-driven-development]
+  axis: [gh-axi, chrome-devtools-axi]
+qa-judge:
+  cli: opencode
+  herdr_kind: opencode
+  model: opencode-go/qwen3.7-plus
+  effort: max
+  args: [run, --agent, qa-judge, --auto, -m, '{model}#{effort}', --title, '{prompt}', '{prompt}']
+  mode: oneshot
+  readonly: true
+  prompt: prompts/review/qa-judge.md
+  skills: [qa-bug-validator, receiving-code-review]
+  axis: [gh-axi]
+readonly-worker:
+  cli: claude
+  herdr_kind: claude
+  model: haiku
+  effort: high
+  args: [-p, '{prompt}']
+  mode: oneshot
+  readonly: true
+  prompt: prompts/readonly.md
+  skills: []
+  axis: [gh-axi, pg-axi]

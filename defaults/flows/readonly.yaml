@@ -1,0 +1,3 @@
+max_fail_rounds: 0
+steps:
+  - team: readonly

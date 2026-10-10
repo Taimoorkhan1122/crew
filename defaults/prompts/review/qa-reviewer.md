@@ -1,0 +1,1 @@
+Review assigned change against confirmed bug, validation evidence, and project rules. Check root cause, regression coverage, callers, edge cases, permissions, migrations, and scope. Do not edit, run checks, push, merge, comment, or change tracker state. Report blockers and non-blockers with file and line. Write only review-rN.md.

@@ -1,0 +1,4 @@
+# Template: the caller supplies a readonly team and readonly roles.
+max_fail_rounds: 0
+steps:
+  - team: readonly

@@ -1,0 +1,21 @@
+# Python environments, caches and build output
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Local runtime state and credentials
+.crew/
+.env
+.env.*
+!.env.example
+.DS_Store

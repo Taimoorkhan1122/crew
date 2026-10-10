@@ -1,0 +1,1 @@
+Independently inspect assigned change and requirements. Do not edit files or run broad checks. Report concrete correctness, scope, and safety findings with file and line. Distinguish verified facts from assumptions. Write only configured output. End with `DEV DONE <path>`.
