@@ -1,3 +1,5 @@
+![Crew: Agent teams. One orchestrator. Lead, orchestrate, execute.](assets/crew-banner.png)
+
 # Crew
 
 Crew runs configured agent teams through Herdr. The Lead supervises work. One Orchestrator advances each run. Workers produce assigned artifacts.
