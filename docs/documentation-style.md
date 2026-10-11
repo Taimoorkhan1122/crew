@@ -58,7 +58,7 @@ Values such as `oneshot` and `readonly` keep their exact spelling in configurati
 ## Exact text and historical evidence
 
 Preserve executable syntax, API signatures, keys, error text, and completion markers. Use generic paths and identifiers in public examples.
-Keep the six UML diagrams accurate. Follow the [diagram instructions](../AGENTS.md#uml-documentation) when a contract changes.
+Keep the UML diagrams accurate. Follow the [diagram instructions](../AGENTS.md#uml-documentation) when a contract changes.
 
 Preserve historical results and limits. Public [acceptance summaries](release-acceptance.md) and [Herdr smoke findings](herdr-notes.md) exclude private execution details.
 Keep original reports outside the public repository. Follow the [publication rules](../AGENTS.md#public-documentation).

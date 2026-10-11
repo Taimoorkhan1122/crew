@@ -247,3 +247,80 @@ Tick, status, and report show `active_tasks`, `orchestrator`, worktree reasons, 
 `closed` also requires no retained worktrees, branches, workspace shells, or uncertain resources.
 Retention is expected conservative behavior; it does not mean resources were destroyed.
 Team close affects only its task panes. Worktree and Orchestrator cleanup require whole-run close.
+
+## Explicit self-update
+
+`crew update --check` reads the latest published stable release from the official `Taimoorkhan1122/crew` repository.
+It does not fetch source, build a package, create a lock, or install files.
+`crew update` applies a newer stable release only when the user invokes it.
+There are no startup or background updates.
+Both commands use TOON by default. Add `--human` for readable output.
+Failures remain on stdout and return exit code 1. Argument conflicts return exit code 2.
+No release and lookup failures do not change the installation.
+
+The updater supports a regular, noneditable local-source installation in a separate POSIX virtual environment.
+Installed `direct_url.json` selects the source. The active interpreter selects the environment.
+The updater refuses source execution, editable installs, system Python, missing metadata, directory aliases, linked worktrees, unsafe overlap, and an untrusted origin.
+It refuses tracked edits, untracked files, version mismatches, local divergence, and downgrades.
+Equal versions require the same published commit. A version match alone is insufficient.
+Normal virtual-environment Python symlinks are permitted. Symlink source content is refused.
+
+The updater resolves the stable release tag to one commit.
+It checks the fetched tag against that commit and requires a forward-only source change.
+A source copy retains ignored files, including local `.crew` runs and `.env` files.
+A release path that conflicts with an ignored file prevents the update.
+The updater does not initialize projects or replace global and project configuration.
+Bundled templates can change with the package.
+
+Preparation builds a wheel and installs it with dependencies in a disposable environment.
+It checks the package version, entrypoint, module imports, and bundled templates.
+A lock outside both update targets prevents another updater from replacing them at the same time.
+The updater copies the complete old environment and checks both targets again before replacement.
+It preserves the old source, replaces the working source, and installs from its final path.
+The installed environment stays at its original path because entrypoint scripts contain absolute paths.
+The final checks use the installed package outside the source checkout.
+Installed metadata must identify the final working source. A repeat update can then report `up_to_date`.
+
+Failure before replacement leaves the targets unchanged.
+Failure after replacement returns `recovery_required`. It does not claim dependency rollback.
+The result gives the recovery directory and shell-quoted recovery commands.
+The directory contains the old source and complete old environment.
+Stop Crew processes before manual recovery. Run the commands in order. Stop if a command fails.
+The commands preserve the failed source and environment before copying the old resources to their original paths.
+They refuse an existing recovery destination. Inspect concurrent changes in the preserved resources before removing them.
+Successful updates also retain recovery material. Remove it only after you have checked the installation and no longer need the backup.
+
+An older CLI requires one manual installation of an updater-enabled release.
+No stable release was published as of 2026-10-11. Live release download and live installation are unverified.
+Disposable Git repositories and offline virtual environments provide source-level verification only.
+Independent review of this updater is pending.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as crew.cli
+    participant Update as crew.update
+    participant GitHub as Official releases API
+    participant Stage as Source copy and trial environment
+    participant Targets as Working source and installed environment
+    User->>CLI: update or update --check
+    CLI->>Update: Discover metadata targets and validate source
+    Update->>GitHub: Resolve latest stable release and pinned commit
+    alt Check or no newer release
+        Update-->>CLI: Availability, no release, or refusal
+    else Explicit newer update
+        Update->>Update: Acquire external lock
+        Update->>Stage: Fetch pin, preserve ignored files, build and verify
+        Update->>Targets: Back up environment and revalidate identities
+        Update->>Targets: Preserve old source, replace source, install final path
+        Update->>Targets: Verify version, help, imports, templates, metadata
+        alt Final verification succeeds
+            Update-->>CLI: Updated and retained recovery location
+        else Failure after mutation
+            Update-->>CLI: recovery_required and preserved recovery commands
+        end
+    end
+    CLI-->>User: TOON by default or explicit human result
+```
+
+The diagram omits subprocess details and filesystem races. Ownership uncertainty prevents an automatic restore.

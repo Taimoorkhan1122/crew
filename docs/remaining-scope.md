@@ -46,3 +46,8 @@ The revised default uses TOON in terminals and pipes. Readable output requires `
 Independent review accepted this default revision on 2026-10-11. Its full suite passed 388 tests.
 Detailed views retain TOON.
 The earlier acceptance record applies to its recorded executable snapshot.
+
+
+Explicit self-update is additional post-acceptance work. It supports a read-only check and a user-invoked stable-release update.
+Its independent review is pending. It does not extend the earlier release acceptance.
+No published stable release or live update was available for verification on 2026-10-11.

@@ -78,6 +78,8 @@ def parser():
     p = add(commands, 'resources', 'Inspect memory, load, workers and model quota.')
     p.add_argument('--run')
     add(commands, 'doctor', 'Read prerequisite availability; do not modify integration.')
+    update = add(commands, 'update', 'Update the installed working checkout from a published stable release.')
+    update.add_argument('--check', action='store_true', help='Read release availability without update changes.')
     axi = add(commands, 'axi', 'Inspect configured tool availability and installation decisions.')
     operations = axi.add_subparsers(dest='operation', required=True)
     for name in ('check', 'install'):
@@ -199,7 +201,12 @@ def main(argv=None):
         if human and args.command in ('status', 'report') and not getattr(args, 'fields', None):
             # Read authoritative task warnings for the human summary without changing TOON views.
             execution_args = argparse.Namespace(**{**vars(args), 'full': True})
-        result = execute(execution_args)
+        return_code = 0
+        if args.command == 'update':
+            from crew.update import run_update
+            result, return_code = run_update(check=args.check)
+        else:
+            result = execute(execution_args)
         fields = getattr(args, 'fields', None)
         if fields:
             names = fields.split(',')
@@ -207,7 +214,7 @@ def main(argv=None):
                 raise UsageError('unknown output field; use --full to inspect available fields')
             result = {name: result[name] for name in names}
         output(result)
-        return 0
+        return return_code
     except UsageError as error:
         output({'error': str(error), 'help': ['crew --help']}); return 2
     except ValidationError as error:

@@ -141,3 +141,19 @@ The user must respond to permission and authentication dialogs. Agents must not 
 
 Setup is complete when configuration validates and the launch environment can find the required executables.
 Before a live run, obtain user acceptance of configuration and resource changes.
+
+## Updates after installation
+
+An older CLI does not have `update`. First install an updater-enabled release with the manual installation steps above.
+Keep the development checkout separate from the installed working checkout.
+No published stable release was available on 2026-10-11. Crew does not use a branch or an unpublished tag as a substitute.
+
+```sh
+crew update --check
+crew --human update --check
+crew update
+```
+
+The installed package metadata selects the working source and virtual environment.
+The current directory and `--project` do not select update targets.
+Read the [update requirements and recovery procedure](runtime-cli.md#explicit-self-update) before an update.

@@ -12,6 +12,8 @@ Live Herdr dispatch and process cleanup remain unverified.
 TOON is the default output format in terminals and pipes.
 Use `--human` for readable outcomes, paths, and lists. Detailed views retain TOON.
 Use `--toon` to select TOON explicitly.
+Use `crew update --check` to read published release availability for an installed working checkout.
+Use `crew update` to apply that release. See [self-update](docs/runtime-cli.md#explicit-self-update).
 See the [CLI output contract](docs/runtime-cli.md).
 
 ## Quick installation

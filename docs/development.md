@@ -195,3 +195,18 @@ Record documentation inventory changes separately from the accepted executable s
 Follow the [diagram instructions](../AGENTS.md#uml-documentation).
 When a documented contract changes, update its UML diagram.
 Validate diagram syntax and meaning. Mermaid blocks display in compatible Markdown viewers.
+
+## Self-update development
+
+[`crew.update`](runtime-cli.md#explicit-self-update) is separate from runtime lifecycle operations.
+It derives targets from the installed distribution and interpreter. Development source execution must refuse an update.
+Use disposable Git source checkouts and installed virtual environments for updater tests.
+Mock the release and download boundary. Execute Git, package builds, installation, and entrypoint checks in the disposable targets.
+Do not use a real working installation or user project as a test target.
+
+The offline installation tests need dependency wheels and a setuptools backend tree.
+Set `CREW_TEST_SETUPTOOLS` to the local directory that contains `setuptools` and its distribution metadata.
+The test helper creates a disposable wheel directory from installed dependencies. It does not download packages.
+If this backend is absent, the installation tests skip. Record that limit with the test result.
+Run focused updater tests before the full suite. Disable pytest cache and Python bytecode for these checks.
+Read the [update sequence](runtime-cli.md#explicit-self-update) for preservation and recovery conditions.

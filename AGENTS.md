@@ -17,7 +17,7 @@ Use ASD-STE100, Issue 9, for project documentation. Apply the [writing rules](do
 - Validate Mermaid syntax and document links. If a local renderer is available, render the diagrams. Report limits of the rendering checks.
 - Preserve historical results and limits. Keep original reports outside the public repository when they contain private details.
 
-Current diagrams: [overview](README.md#operating-model), [runtime structure](docs/development.md#runtime-structure), [role sequence](docs/lead-orchestrator-workflow.md#run-and-decision-sequence), [task lifecycle](docs/runtime-cli.md#task-lifecycle), and [configuration model](docs/config-migration.md#configuration-model).
+Current diagrams: [overview](README.md#operating-model), [runtime structure](docs/development.md#runtime-structure), [role sequence](docs/lead-orchestrator-workflow.md#run-and-decision-sequence), [task lifecycle](docs/runtime-cli.md#task-lifecycle), [configuration model](docs/config-migration.md#configuration-model), and [update sequence](docs/runtime-cli.md#explicit-self-update).
 
 ## Public documentation
 
