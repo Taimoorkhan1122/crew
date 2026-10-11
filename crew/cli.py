@@ -19,7 +19,7 @@ from crew.runtime import Runtime, config_set, create_run, identifier, init_proje
 from crew.toon import encode
 from crew.human import render
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 
 
 class Parser(argparse.ArgumentParser):

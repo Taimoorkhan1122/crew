@@ -210,3 +210,27 @@ The test helper creates a disposable wheel directory from installed dependencies
 If this backend is absent, the installation tests skip. Record that limit with the test result.
 Run focused updater tests before the full suite. Disable pytest cache and Python bytecode for these checks.
 Read the [update sequence](runtime-cli.md#explicit-self-update) for preservation and recovery conditions.
+
+## Installer verification
+
+`scripts/install.sh` installs Crew for one user. Read [setup](setup.md#guided-installation) for the behavior.
+The installer installs from the checkout without an editable link.
+It keeps the source a Git checkout with the official origin and a separate environment.
+Therefore the source remains usable by `crew update`.
+
+Use disposable homes and checkouts for the installer tests:
+
+```sh
+crew_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/crew-check.XXXXXX")
+cd "$crew_source"
+
+CREW_TEST_SETUPTOOLS=/path/to/setuptools/tree \
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
+  --basetemp "$crew_check_dir/installer" tests/test_install_script.py
+```
+
+The tests run the real script. They use real Git checkouts, virtual environments, pip, entrypoints, and fresh shells.
+Only the package source boundary uses a local wheelhouse. The tests set `PIP_NO_INDEX` and `PIP_FIND_LINKS` to install without the network.
+If `CREW_TEST_SETUPTOOLS` is absent, the install tests skip. Record that limit.
+The tests never use the real home directory, the real Crew installation, or this repository as an install target.
+They do not change the real shell files.

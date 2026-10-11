@@ -54,12 +54,22 @@ For manual installation, use the steps below.
 
 ### 1. Install the CLI
 
-Install from this repository in a separate Python environment:
+Clone the repository. Then run the guided installer:
 
 ```sh
 git clone https://github.com/Taimoorkhan1122/crew.git
 cd crew
+bash scripts/install.sh
+```
 
+The installer creates a separate environment, installs Crew, links the `crew`
+command, and adds the PATH entry for zsh or bash. Use `--yes` for an unattended
+run. Read [setup](docs/setup.md#guided-installation) for the options and the
+safety rules.
+
+For a manual installation, use these steps in a separate Python environment:
+
+```sh
 crew_venv="$HOME/.local/share/crew/venv"
 python3 --version
 python3 -m venv "$crew_venv"
@@ -70,7 +80,7 @@ crew --version
 crew --help
 ```
 
-The expected version is `0.1.0`. Installation can download Python dependencies.
+The expected version is `0.1.1`. Installation can download Python dependencies.
 Add `export PATH="$HOME/.local/share/crew/venv/bin:$PATH"` to your shell configuration.
 New Herdr panes must find `crew`.
 

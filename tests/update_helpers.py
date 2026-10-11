@@ -3,6 +3,7 @@ from importlib import metadata
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,12 @@ def make_install(base, wheels):
     shutil.copytree(root / 'crew', repository / 'crew', ignore=shutil.ignore_patterns('__pycache__'))
     shutil.copytree(root / 'defaults', repository / 'defaults')
     shutil.copy2(root / 'pyproject.toml', repository / 'pyproject.toml')
+    # The live project version changes across releases. Pin the old fixture to
+    # the literal old version so the updater old/new boundary stays fixed.
+    copied = (repository / 'pyproject.toml').read_text()
+    live_version = re.search(r'^version = "([^"]+)"', copied, re.M).group(1)
+    for path in (repository / 'pyproject.toml', repository / 'crew/cli.py'):
+        path.write_text(path.read_text().replace(live_version, '0.1.0'))
     (repository / '.gitignore').write_text('build/\n*.egg-info/\n.DS_Store\n.crew/\n.env\n')
     run(['git', 'init', '-b', 'main', repository], cwd=base)
     run(['git', '-C', repository, 'config', 'user.name', 'Updater fixture'], cwd=base)
