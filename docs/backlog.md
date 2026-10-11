@@ -8,7 +8,7 @@ These items remain deferred. They do not authorize execution or block the accept
 | Item | Current gap | Revisit condition |
 | --- | --- | --- |
 | Live Herdr acceptance | Tests passed. Live Crew launch and process cleanup remain unverified. | User authorizes an isolated session, topology changes, and cleanup. |
-| Live self-update | The explicit updater is pending independent review. No stable release exists for a live upgrade. | Publish an authorized stable release, then authorize a disposable live upgrade check. |
+| Live self-update | Independent offline review accepted the updater on 2026-10-11. No stable release or live install was verified. | Publish an authorized stable release, then authorize a disposable live upgrade check. |
 | Installation on a new machine | Wheel verification reused existing interpreter dependencies. | A release needs a clean supported host with authorized dependency setup. |
 | Legacy overlay migration | Legacy overlays can contain unsupported absolute repositories and an absolute `{ticket}` pattern. | User authorizes migration before a mutable run. |
 | Account-backed or real-ticket E2E | Real account inputs, environments, and execution remain unverified. | Inputs, access, and execution authorization are available. |

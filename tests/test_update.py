@@ -422,3 +422,131 @@ def test_subprocess_timeout_is_bounded_with_descendants(tmp_path):
         module.command([sys.executable, '-I', '-B', '-c', script], cwd=tmp_path, timeout=0.2)
     time.sleep(0.8)
     assert not sentinel.exists()
+
+
+def test_subprocess_timeout_cleanup_is_bounded_with_detached_pipe_descendant(tmp_path):
+    import os
+    import signal
+    import subprocess
+    import sys
+    import threading
+    import time
+    module = updater()
+    token = 'crew-detached-writer-probe'
+    pidfile = tmp_path / 'detached.pid'
+    grandchild = ("import os,time\n"
+                  f"open({str(pidfile)!r},'w').write(str(os.getpid()))\n"
+                  f"marker={token!r}\n"
+                  "time.sleep(30)\n")
+    script = ("import subprocess,sys,time\n"
+              f"subprocess.Popen([sys.executable,'-I','-B','-c',{grandchild!r}],start_new_session=True)\n"
+              "time.sleep(30)\n")
+    outcome = {}
+
+    def invoke():
+        try:
+            module.command([sys.executable, '-I', '-B', '-c', script], cwd=tmp_path, timeout=1.0)
+            outcome['raised'] = False
+        except module.UpdateError as error:
+            outcome['error'] = str(error)
+
+    # The watchdog thread and the bounded join keep this test from hanging when cleanup regresses.
+    worker = threading.Thread(target=invoke, daemon=True)
+    started = time.monotonic()
+    worker.start()
+    worker.join(timeout=20)
+    elapsed = time.monotonic() - started
+    for _ in range(40):
+        if pidfile.exists():
+            break
+        time.sleep(0.05)
+    pid = int(pidfile.read_text()) if pidfile.exists() else None
+    if pid is not None:
+        # Stop only the exact fixture-owned writer that the probe created and identified.
+        identity = subprocess.run(['ps', '-ww', '-o', 'command=', '-p', str(pid)],
+                                  capture_output=True, text=True).stdout
+        assert token in identity, identity
+        os.kill(pid, signal.SIGKILL)
+        for _ in range(50):
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                break
+            time.sleep(0.1)
+    worker.join(timeout=5)
+    assert not worker.is_alive(), 'updater timeout cleanup blocked on a detached inherited pipe'
+    assert 'timed out' in outcome.get('error', ''), outcome
+    assert elapsed < 8, elapsed
+
+
+def test_first_source_rename_failure_keeps_exact_targets_without_recovery_commands(local_install):
+    import json
+    from update_helpers import installed_call
+    source = local_install['source']
+    extra = ("from pathlib import Path\n"
+             "targets=u.discover(); before_source=u.snapshot(targets.source); before_environment=u.snapshot(targets.environment,allow_symlinks=True)\n"
+             "real_rename=Path.rename\n"
+             "def rename(path,destination):\n"
+             f"    if path == Path({str(source)!r}): raise OSError(18,'cross-device link')\n"
+             "    return real_rename(path,destination)\n"
+             "Path.rename=rename\n"
+             "real_run=u.run_update\n"
+             "def run_update(*args,**kwargs):\n"
+             "    result,code=real_run(*args,**kwargs)\n"
+             "    result['targets_unchanged']=(u.snapshot(targets.source)==before_source and u.snapshot(targets.environment,allow_symlinks=True)==before_environment)\n"
+             "    return result,code\n"
+             "u.run_update=run_update\n")
+    result = installed_call(local_install, update_code(local_install, extra))
+    assert result.returncode == 0, result.stderr
+    data, code = json.loads(result.stdout)
+    assert code == 1 and data['targets_unchanged'] is True, data
+    assert data['status'] == 'refused', data
+    assert 'recovery_commands' not in data
+    assert 'cross-device' in data['error']
+    assert not (Path(data['recovery']) / 'old_source').exists()
+
+
+def test_external_symlinked_package_root_refuses_without_touching_external_files(local_install):
+    import json
+    from update_helpers import installed_call
+    environment = local_install['environment']
+    packages = next(environment.glob('lib/python*/site-packages'))
+    outside = environment.parent / 'external package root'
+    packages.rename(outside)
+    packages.symlink_to(outside, target_is_directory=True)
+    sentinel = outside / 'external-user-config'
+    sentinel.write_text('must remain unchanged')
+    code = ("import crew.update as u,json\n"
+            f"from pathlib import Path; outside=Path({str(outside)!r}); before=u.snapshot(outside,allow_symlinks=True)\n"
+            f"u.latest_release=lambda:u.Release('v0.1.1','0.1.1',{local_install['commit']!r})\n"
+            "result,status=u.run_update(check=True); result['outside_unchanged']=u.snapshot(outside,allow_symlinks=True)==before; print(json.dumps([result,status]))\n")
+    result = installed_call(local_install, code)
+    assert result.returncode == 0, result.stderr
+    data, status = json.loads(result.stdout)
+    assert data['outside_unchanged'] is True and sentinel.read_text() == 'must remain unchanged'
+    assert status == 1 and data['status'] == 'refused', data
+    assert 'external' in data['error'] or 'alias' in data['error']
+    assert not (environment.parent / '.crew-updates').exists()
+
+
+def test_malformed_installed_metadata_has_structured_cli_refusal(local_install):
+    import json
+    from update_helpers import installed_call
+    metadata = next(local_install['environment'].glob('lib/python*/site-packages/crew_runner-*.dist-info/direct_url.json'))
+    code = ("import crew.update as u,sys\n"
+            "def network(): raise u.UpdateError('unexpected release lookup')\n"
+            "u.latest_release=network\n"
+            "from crew.cli import main; sys.exit(main(['update','--check']))")
+    cases = [{'url': 42, 'dir_info': {}}, {'url': None, 'dir_info': {}},
+             {'url': [], 'dir_info': {}}, {'url': {}, 'dir_info': {}}, [], None,
+             {'url': local_install['source'].as_uri(), 'dir_info': []},
+             {'url': local_install['source'].as_uri(), 'dir_info': {'editable': 'false'}}]
+    for malformed in cases:
+        metadata.write_text(json.dumps(malformed))
+        result = installed_call(local_install, code)
+        assert result.returncode == 1, (malformed,result.stdout,result.stderr)
+        assert result.stderr == '', (malformed,result.stderr)
+        assert 'status: refused' in result.stdout and 'error:' in result.stdout, (malformed,result.stdout)
+        assert 'metadata' in result.stdout, (malformed,result.stdout)
+        assert 'unexpected release lookup' not in result.stdout
+    assert not (local_install['environment'].parent / '.crew-updates').exists()

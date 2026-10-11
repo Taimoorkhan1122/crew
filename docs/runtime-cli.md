@@ -260,10 +260,13 @@ No release and lookup failures do not change the installation.
 
 The updater supports a regular, noneditable local-source installation in a separate POSIX virtual environment.
 Installed `direct_url.json` selects the source. The active interpreter selects the environment.
+The updater validates the metadata shape and URL type before use. Malformed metadata produces a structured refusal.
 The updater refuses source execution, editable installs, system Python, missing metadata, directory aliases, linked worktrees, unsafe overlap, and an untrusted origin.
 It refuses tracked edits, untracked files, version mismatches, local divergence, and downgrades.
 Equal versions require the same published commit. A version match alone is insufficient.
-Normal virtual-environment Python symlinks are permitted. Symlink source content is refused.
+Normal virtual-environment Python symlinks are permitted.
+The installed package, metadata, template, and script roots must resolve inside the environment.
+A symlink alias that redirects a write root outside the environment is refused. Symlink source content is refused.
 
 The updater resolves the stable release tag to one commit.
 It checks the fetched tag against that commit and requires a forward-only source change.
@@ -283,6 +286,8 @@ Installed metadata must identify the final working source. A repeat update can t
 
 Failure before replacement leaves the targets unchanged.
 Failure after replacement returns `recovery_required`. It does not claim dependency rollback.
+A command that exceeds its timeout stops its process session.
+A descendant in a separate session can continue. The updater reports that uncertainty and keeps the recovery material.
 The result gives the recovery directory and shell-quoted recovery commands.
 The directory contains the old source and complete old environment.
 Stop Crew processes before manual recovery. Run the commands in order. Stop if a command fails.

@@ -29,6 +29,7 @@ API = 'https://api.github.com/repos/Taimoorkhan1122/crew'
 WEB = 'https://github.com/Taimoorkhan1122/crew'
 STABLE = re.compile(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)')
 SHA = re.compile(r'[0-9a-f]{40}')
+TIMEOUT_CLEANUP = 5
 
 
 class UpdateError(ValueError):
@@ -106,6 +107,33 @@ def latest_release():
     raise UpdateError('release tag nesting is unsupported')
 
 
+def canonical_inside(path, root):
+    try:
+        return Path(path).resolve(strict=True).is_relative_to(Path(root).resolve(strict=True))
+    except OSError:
+        return False
+
+
+def installation_write_roots(distribution):
+    roots = [Path(__file__).parent, Path(distribution.locate_file(''))]
+    for item in distribution.files or []:
+        parts = Path(item).parts
+        if len(parts) >= 2 and parts[0].endswith('.dist-info'):
+            roots.append(Path(distribution.locate_file(parts[0])))
+            break
+    return roots
+
+
+def verify_install_roots(distribution):
+    """Refuse install write roots that a symlink alias redirects outside the environment."""
+    environment = Path(sys.prefix)
+    roots = [('package or metadata', root) for root in installation_write_roots(distribution)]
+    roots += [('template', environment / 'share/crew'), ('script', environment / 'bin')]
+    for kind, root in roots:
+        if root.exists() and not canonical_inside(root, environment):
+            raise UpdateError(f'installed {kind} write root resolves outside the environment; a symlink alias is unsupported')
+
+
 def discover():
     try:
         distribution = metadata.distribution('crew-runner')
@@ -115,13 +143,21 @@ def discover():
     if (not Path(__file__).absolute().is_relative_to(Path(sys.prefix))
             or not Path(distribution.locate_file('crew/cli.py')).absolute().is_relative_to(Path(sys.prefix))):
         raise UpdateError('development source execution cannot self-update; use the installed working CLI')
-    if not isinstance(direct, dict) or not isinstance(direct.get('dir_info', {}), dict):
-        raise UpdateError('installed source metadata is invalid')
-    if direct.get('dir_info', {}).get('editable') is True:
-        raise UpdateError('development/editable installations cannot self-update; update the separate working installation')
+    verify_install_roots(distribution)
+    if not isinstance(direct, dict):
+        raise UpdateError('installed source metadata is invalid; expected a direct_url.json object')
+    url_value = direct.get('url')
+    if not isinstance(url_value, str):
+        raise UpdateError('installed source metadata is invalid; the source URL is not a string')
+    if 'dir_info' in direct:
+        dir_info = direct['dir_info']
+        if not isinstance(dir_info, dict) or ('editable' in dir_info and not isinstance(dir_info['editable'], bool)):
+            raise UpdateError('installed source metadata is invalid; expected directory information')
+        if dir_info.get('editable') is True:
+            raise UpdateError('development/editable installations cannot self-update; update the separate working installation')
     if sys.prefix == sys.base_prefix:
         raise UpdateError('self-update requires a dedicated virtual environment')
-    url = urlsplit(direct.get('url', ''))
+    url = urlsplit(url_value)
     if url.scheme != 'file' or url.netloc or url.query or url.fragment or 'dir_info' not in direct or 'archive_info' in direct or 'vcs_info' in direct:
         raise UpdateError('self-update requires unambiguous local-directory source metadata')
     return Targets(Path(unquote(url.path)), Path(sys.prefix), distribution.version)
@@ -141,6 +177,17 @@ def isolated_env(cache=None):
     return env
 
 
+def stop_group(process):
+    """Stop the command session without waiting on output pipes a descendant may hold."""
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except OSError:
+        try:
+            process.kill()
+        except OSError:
+            pass
+
+
 def command(args, *, cwd, timeout=60, cache=None):
     try:
         process = subprocess.Popen([str(value) for value in args], cwd=cwd, env=isolated_env(cache),
@@ -148,10 +195,21 @@ def command(args, *, cwd, timeout=60, cache=None):
         try:
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
-            # Build/install descendants must not continue writing after a reported timeout.
-            os.killpg(process.pid, signal.SIGKILL)
-            process.communicate()
-            raise UpdateError('update command timed out; its process group was stopped') from None
+            # The direct child leads a new session. Stop that session, then bound the wait: a
+            # descendant in a separate session can inherit the pipes and block an unbounded read.
+            # Report only the group stop and preserve recovery material for the uncertain writers.
+            stop_group(process)
+            try:
+                process.wait(timeout=TIMEOUT_CLEANUP)
+            except subprocess.TimeoutExpired:
+                pass
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
+            raise UpdateError('update command timed out; its process group was stopped, detached writers can continue, and recovery material is preserved') from None
         result = subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
     except (OSError, subprocess.SubprocessError) as error:
         raise UpdateError(f'update command failed: {error}') from None
@@ -267,7 +325,9 @@ def verify_install(environment, version, work, source=None):
     script = """import importlib,importlib.metadata as m,json,pathlib,pkgutil,sys,crew
 expected=sys.argv[1]
 assert m.version('crew-runner') == expected
-assert pathlib.Path(crew.__file__).is_relative_to(pathlib.Path(sys.prefix))
+prefix=pathlib.Path(sys.prefix).resolve()
+assert pathlib.Path(crew.__file__).resolve().is_relative_to(prefix)
+assert pathlib.Path(m.distribution('crew-runner').locate_file('')).resolve().is_relative_to(prefix)
 for module in pkgutil.walk_packages(crew.__path__, crew.__name__+'.'):
     importlib.import_module(module.name)
 from crew.cli import VERSION
@@ -350,8 +410,8 @@ def apply_update(targets, release, current, details):
             commands = recovery_commands(targets, work)
             (work / 'RECOVERY.json').write_text(json.dumps({'source': str(targets.source),
                 'environment': str(targets.environment), 'commands': commands}, indent=2) + '\n')
-            mutated = True
             targets.source.rename(work / 'old_source')
+            mutated = True
             if snapshot(work / 'old_source') != current['source_files']:
                 raise UpdateError('source changed during replacement; preserved source needs recovery')
             prepared.rename(targets.source)

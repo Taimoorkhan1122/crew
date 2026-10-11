@@ -2,6 +2,11 @@
 
 Develop in this repository. Read [development](docs/development.md) before you change the implementation. Read [release scope](docs/remaining-scope.md) before you select work.
 
+## Development staffing
+
+The Lead supervises each task. One source writer implements it. A different independent worker reviews it.
+Use the configured OpenCode executor and reviewer models. A worker report means ready for review, not acceptance.
+
 ## Documentation language
 
 Use ASD-STE100, Issue 9, for project documentation. Apply the [writing rules](docs/documentation-style.md) to new and changed text. Use the project term list for software terms. Preserve command behavior, public identifiers, markers, and historical results. Record vocabulary review gaps before you claim full STE compliance.

@@ -97,7 +97,7 @@ The arrows show dependencies. They do not imply an atomic transaction across fil
 
 1. Read the accepted contract. Define a bounded change. Change an accepted module only for a demonstrated defect or an authorized requirement.
 2. Assign one executor and an independent reviewer.
-3. Use Sol 6.1 low for implementation. Use Sol 6.1 medium for review. Use Luna for smaller readonly tasks.
+3. Use the configured OpenCode executor model for implementation. Use an independent OpenCode reviewer model for review. Use a smaller model for read-only tasks.
 4. Use TDD to reproduce the requirement with a meaningful failing test. Make the smallest implementation change.
 5. Do the targeted checks. After the process stops, execute the full suite. Resolve failures before further work.
 6. Save commands, exit codes, source hashes, limits, and a handoff.
