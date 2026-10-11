@@ -9,6 +9,55 @@ The designated reviewer accepted the reduced release on 2026-10-10.
 Verification used fake Herdr adapters, temporary Git repositories, and real CLI subprocesses.
 Live Herdr dispatch and process cleanup remain unverified.
 
+## Quick installation
+
+Use Python 3.11 or newer and Git. The runtime requires POSIX file locks.
+This release has macOS verification. Windows support is unverified.
+
+### 1. Install the CLI
+
+Install from this repository in a separate Python environment:
+
+```sh
+git clone https://github.com/Taimoorkhan1122/crew.git
+cd crew
+
+crew_venv="$HOME/.local/share/crew/venv"
+python3 --version
+python3 -m venv "$crew_venv"
+"$crew_venv/bin/python" -m pip install .
+export PATH="$crew_venv/bin:$PATH"
+
+crew --version
+crew --help
+```
+
+The expected version is `0.1.0`. Installation can download Python dependencies.
+Add `export PATH="$HOME/.local/share/crew/venv/bin:$PATH"` to your shell configuration.
+New Herdr panes must find `crew`.
+
+### 2. Set up Crew in your project
+
+Choose the folder where you want Crew to work, such as your application's repository.
+Replace `/path/to/your/project` below with that folder's path:
+
+```sh
+cd "/path/to/your/project"
+crew_global_dir="$HOME/.local/share/crew/venv/share/crew"
+
+CREW_ROLE=lead crew --global-dir "$crew_global_dir" project init
+crew --global-dir "$crew_global_dir" config validate
+```
+
+The first Crew command creates `.crew/project.yaml` and copies agent prompts into your project.
+It preserves existing files. The second command checks the configuration.
+The `crew_global_dir` value points to the templates installed in step 1.
+
+Open `.crew/project.yaml` to review the agent settings. The bundled roles select Claude and OpenCode.
+Before your first run, complete the [live-run setup](docs/setup.md#prerequisites) for Herdr, agent authentication, and model quota.
+
+Then follow [getting started](docs/quickstart.md) for your first readonly run.
+
 ## Start here
 
 | Task | Guide |
