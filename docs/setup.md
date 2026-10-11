@@ -151,9 +151,10 @@ crew --global-dir "$crew_global_dir" --project "$crew_project" config show
 crew --global-dir "$crew_global_dir" --project "$crew_project" config validate
 ```
 
-Initialization creates `.crew/project.yaml`. It copies templates and prompts without replacing existing files.
-Put model and project changes in that overlay. Keep the installed templates as the base configuration.
-Prompt paths are relative to the project's `.crew/` directory.
+Initialization creates `.crew/project.yaml` and copies the templates and prompts without replacing existing files.
+The copied split files become the project override. Put model and project changes in the `.crew/` files.
+Keep the installed templates as the base configuration. Prompt paths are relative to the project's `.crew/` directory.
+See the [overlay and pinning contract](config-migration.md#project-initialization-and-pinning).
 
 For source inspection, use `--global-dir "/path/to/crew/defaults"`. See [development](development.md) for the development environment.
 

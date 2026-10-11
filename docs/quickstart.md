@@ -17,7 +17,7 @@ crew --global-dir "$crew_global_dir" --project "$crew_project" config show
 crew --global-dir "$crew_global_dir" --project "$crew_project" config validate
 ```
 
-Review `.crew/project.yaml`. Inspect the worker and Orchestrator roles, prompts, arguments, resource limits, and tools.
+Review the `.crew/` configuration files. Inspect the worker and Orchestrator roles, prompts, arguments, resource limits, and tools.
 If applicable, apply the [Codex example](setup.md#example-codex-overlay-for-a-small-readonly-run). Validate the configuration again.
 Initialization preserves existing files.
 

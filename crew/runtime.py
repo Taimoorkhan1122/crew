@@ -18,7 +18,7 @@ import tempfile
 from uuid import uuid4
 
 import yaml
-from crew.config import CrewConfig, Team, load_config, _validate_references, decode_yaml
+from crew.config import CrewConfig, Team, load_config, safe_child, _validate_references, decode_yaml
 from crew import control
 from crew.dispatch import dispatch as dispatch_task
 from crew.flow import next_tasks
@@ -70,25 +70,11 @@ def atomic_yaml(path, value):
             os.unlink(name)
 
 
-def safe_child(root, relative):
-    """Reject absolute paths, traversal and symlinks in every existing component."""
-    root = Path(root)
-    relative = Path(relative)
-    if relative.is_absolute() or not relative.parts or any(p in ('..', '.') for p in relative.parts):
-        raise ValueError('relative in-root path required')
-    path = root
-    for part in relative.parts:
-        path = path / part
-        if path.is_symlink():
-            raise ValueError('symlink paths are forbidden')
-    if not path.resolve().is_relative_to(root.resolve()):
-        raise ValueError('path escapes root')
-    return path
-
-
 def project_config(global_dir, project):
-    path = safe_child(Path(project), '.crew/project.yaml')
-    return load_config(global_dir, project_file=path if path.exists() else None)
+    project = Path(project)
+    path = safe_child(project, '.crew/project.yaml')
+    return load_config(global_dir, project_root=project,
+                       project_file=path if path.exists() else None)
 
 
 def init_project(global_dir, project):
@@ -192,7 +178,8 @@ def config_set(global_dir, project, assignment, *, scope='project', run_id=None)
         with tempfile.TemporaryDirectory() as scratch:
             candidate = Path(scratch) / 'project.yaml'
             atomic_yaml(candidate, data)
-            load_config(global_dir, project_file=candidate)
+            # Validate against the actual project split files, not the scratch parent.
+            load_config(global_dir, project_root=project, project_file=candidate)
     else:
         # Sections have their own files in the established global loader contract.
         parts = key.split('.')

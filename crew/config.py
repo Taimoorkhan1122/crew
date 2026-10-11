@@ -115,6 +115,22 @@ def decode_yaml(text: str):
         raise ValueError('invalid YAML syntax') from error
 
 
+def safe_child(root, relative):
+    """Reject absolute paths, traversal and symlinks in every existing component."""
+    root = Path(root)
+    relative = Path(relative)
+    if relative.is_absolute() or not relative.parts or any(p in ('..', '.') for p in relative.parts):
+        raise ValueError('relative in-root path required')
+    path = root
+    for part in relative.parts:
+        path = path / part
+        if path.is_symlink():
+            raise ValueError('symlink paths are forbidden')
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise ValueError('path escapes root')
+    return path
+
+
 def _read_yaml(path: Path) -> dict:
     value = decode_yaml(path.read_text(encoding="utf-8"))
     if value is None:
@@ -161,26 +177,58 @@ def _validate_references(config: CrewConfig) -> None:
                 raise ValueError(f"flow {flow_name!r} references unknown team {step.team!r}")
 
 
-def load_config(
-    global_dir: str | Path,
-    *,
-    project_file: str | Path | None = None,
-    run_file: str | Path | None = None,
-) -> CrewConfig:
-    """Load global YAML files, then recursively apply project and run overrides."""
-    root = Path(global_dir)
-    merged = _read_yaml(root / "config.yaml")
-    for filename, key in (("roles.yaml", "roles"), ("teams.yaml", "teams"), ("axis.yaml", "axis")):
-        merged[key] = _read_yaml(root / filename)
+_SECTION_FILES = (("roles.yaml", "roles"), ("teams.yaml", "teams"), ("axis.yaml", "axis"))
 
+
+def _flows_in(root: Path, *, guard: bool = False) -> dict[str, dict]:
+    """Read each flow file. Reject duplicate stems. Guard each path when requested."""
     flows: dict[str, dict] = {}
-    flow_dir = root / "flows"
-    for path in sorted((*flow_dir.glob("*.yaml"), *flow_dir.glob("*.yml"))):
+    for path in sorted((*root.glob("*.yaml"), *root.glob("*.yml"))):
+        if guard:
+            safe_child(root, path.name)
         if path.stem in flows:
             raise ValueError(f"duplicate flow name: {path.stem}")
         flows[path.stem] = _read_yaml(path)
-    merged["flows"] = flows
+    return flows
 
+
+def _global_layer(root: Path) -> dict:
+    merged = _read_yaml(root / "config.yaml")
+    for filename, key in _SECTION_FILES:
+        merged[key] = _read_yaml(root / filename)
+    merged["flows"] = _flows_in(root / "flows")
+    return merged
+
+
+def _project_layer(project_root: Path) -> dict:
+    """Read project split files, checking the directory and each consumed file."""
+    crew = safe_child(Path(project_root), ".crew")
+    layer: dict = {}
+    config_path = safe_child(crew, "config.yaml")
+    if config_path.exists():
+        layer = _read_yaml(config_path)
+    for filename, key in _SECTION_FILES:
+        path = safe_child(crew, filename)
+        if path.exists():
+            layer[key] = _read_yaml(path)
+    flow_dir = safe_child(crew, "flows")
+    if flow_dir.is_dir():
+        layer["flows"] = _flows_in(flow_dir, guard=True)
+    return layer
+
+
+def load_config(
+    global_dir: str | Path,
+    *,
+    project_root: str | Path | None = None,
+    project_file: str | Path | None = None,
+    run_file: str | Path | None = None,
+) -> CrewConfig:
+    """Load global files, project split files, project.yaml, then run overrides."""
+    root = Path(global_dir)
+    merged = _global_layer(root)
+    if project_root is not None:
+        merged = _merge(merged, _project_layer(Path(project_root)))
     for override_path in (project_file, run_file):
         if override_path is not None:
             merged = _merge(merged, _read_yaml(Path(override_path)))

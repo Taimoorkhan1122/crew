@@ -3,7 +3,7 @@
 The noninteractive `crew` command calls the runtime modules.
 From source, use `.venv/bin/python -m crew.cli`. A wheel installation supplies the `crew` entrypoint.
 Global configuration defaults to `~/.config/crew`. Use `--global-dir` to select another directory.
-Installed templates are under `share/crew`. Project settings are in `.crew/project.yaml`.
+Installed templates are under `share/crew`. Project settings are in the `.crew/` directory. See the [configuration model](config-migration.md#configuration-model).
 A run saves validated configuration in `.crew/runs/<id>/run.yaml`. State contains its digest.
 
 `crew --help` lists commands. Bare `crew` shows local runs and next actions.

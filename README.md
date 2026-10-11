@@ -97,11 +97,11 @@ CREW_ROLE=lead crew --human --global-dir "$crew_global_dir" project init
 crew --global-dir "$crew_global_dir" config validate
 ```
 
-The first Crew command creates `.crew/project.yaml` and copies agent prompts into your project.
+The first Crew command copies templates and prompts into your project and creates `.crew/project.yaml`.
 It preserves existing files. The second command checks the configuration.
 The `crew_global_dir` value points to the templates installed in step 1.
 
-Open `.crew/project.yaml` to review the agent settings. The bundled roles select Claude and OpenCode.
+Open the `.crew/` configuration files to review the agent settings. The bundled roles select Claude and OpenCode.
 Before your first run, complete the [live-run setup](docs/setup.md#prerequisites) for Herdr, agent authentication, and model quota.
 
 Then follow [getting started](docs/quickstart.md) for your first readonly run.
