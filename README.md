@@ -80,7 +80,7 @@ crew --version
 crew --help
 ```
 
-The expected version is `0.1.1`. Installation can download Python dependencies.
+The expected version is `0.1.2`. Installation can download Python dependencies.
 Add `export PATH="$HOME/.local/share/crew/venv/bin:$PATH"` to your shell configuration.
 New Herdr panes must find `crew`.
 

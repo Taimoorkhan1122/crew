@@ -16,7 +16,7 @@ from installer_helpers import (MARKER, SCRIPT, call_installer, install_env,
                                make_checkout, offline_pip, offline_without_wheels,
                                run, shell_finds_crew)
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 
 @pytest.fixture(scope='session')
