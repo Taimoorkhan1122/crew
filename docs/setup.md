@@ -2,6 +2,9 @@
 
 This guide installs the CLI and prepares configuration. Then use [getting started](quickstart.md) to create a run.
 
+For AI-assisted installation, copy the [installation prompt](../README.md#install-with-an-ai-assistant) into an assistant with local terminal access.
+Replace the project path before you send it. The prompt covers installation, project initialization, and configuration checks.
+
 ## Prerequisites
 
 - Use Python 3.11 or newer. The runtime uses POSIX file locks. This release has macOS verification; Windows support is unverified.

@@ -14,6 +14,37 @@ Live Herdr dispatch and process cleanup remain unverified.
 Use Python 3.11 or newer and Git. The runtime requires POSIX file locks.
 This release has macOS verification. Windows support is unverified.
 
+### Install with an AI assistant
+
+Open an AI coding assistant with terminal access on your computer.
+Replace `/path/to/your/project` with your project's folder. Then copy this prompt into the assistant:
+
+```text
+Install Crew for this project: /path/to/your/project
+Repository: https://github.com/Taimoorkhan1122/crew
+
+I authorize a local Crew installation and its Python dependencies.
+You may add Crew to my shell PATH. Preserve existing settings and project files.
+
+1. Check the operating system, Python version, and Git availability.
+   Crew requires Python 3.11 or newer and POSIX file locks.
+   If a prerequisite is missing, explain how I can install it.
+2. Clone Crew into an available source folder, or use an existing checkout.
+   Read its AGENTS.md, README.md, and docs/setup.md before installation.
+3. Install Crew in the separate environment described in the setup guide.
+   Make the crew command available in my shell.
+4. Initialize Crew in my project with CREW_ROLE=lead.
+   Select the installed templates with --global-dir.
+5. Check crew --version and crew --help.
+   Validate my project configuration with the installed templates.
+   Report the installed version, configuration path, check results, and remaining live-run requirements.
+
+Stop after installation and configuration checks.
+Leave live runs and agent authentication for me.
+```
+
+For manual installation, use the steps below.
+
 ### 1. Install the CLI
 
 Install from this repository in a separate Python environment:
