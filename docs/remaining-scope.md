@@ -40,7 +40,9 @@ They do not establish acceptance of the original full plan.
 
 Documentation changes occurred after executable acceptance.
 The archived review inventory describes the earlier snapshot.
-The terminal CLI presentation is post-acceptance work. Independent review accepted this change on 2026-10-11.
+The readable CLI presentation is post-acceptance work. Independent review accepted its earlier output selection on 2026-10-11.
 The review passed 380 tests and checked terminal output with disposable projects and fake adapters.
-Piped TOON output and detailed views retain the earlier contract.
+The revised default uses TOON in terminals and pipes. Readable output requires `--human`.
+Independent review accepted this default revision on 2026-10-11. Its full suite passed 388 tests.
+Detailed views retain TOON.
 The earlier acceptance record applies to its recorded executable snapshot.

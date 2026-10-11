@@ -5,8 +5,8 @@ This guide installs the CLI and prepares configuration. Then use [getting starte
 For AI-assisted installation, copy the [installation prompt](../README.md#install-with-an-ai-assistant) into an assistant with local terminal access.
 Replace the project path before you send it. The prompt covers installation, project initialization, and configuration checks.
 
-Terminal output uses readable outcomes and labeled paths. Piped output uses TOON.
-Use `--toon` for terminal TOON output. Use `--human` for readable piped output.
+TOON is the default output format in terminals and pipes.
+Use `--human` for readable outcomes and labeled paths. Use `--toon` to select TOON explicitly.
 Detailed views retain TOON. See the [output contract](runtime-cli.md).
 
 ## Prerequisites
@@ -60,7 +60,7 @@ These commands select the installed `share/crew` directory:
 ```sh
 crew_project="/absolute/path/to/your/project"
 
-CREW_ROLE=lead crew --global-dir "$crew_global_dir" --project "$crew_project" project init
+CREW_ROLE=lead crew --human --global-dir "$crew_global_dir" --project "$crew_project" project init
 crew --global-dir "$crew_global_dir" --project "$crew_project" config path
 crew --global-dir "$crew_global_dir" --project "$crew_project" config show
 crew --global-dir "$crew_global_dir" --project "$crew_project" config validate

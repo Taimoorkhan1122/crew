@@ -1,4 +1,4 @@
-"""Argparse interface with terminal presentation and structured pipe output."""
+"""Argparse interface with TOON defaults and opt-in human presentation."""
 from __future__ import annotations
 
 import argparse
@@ -174,7 +174,7 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv in (['-v'], ['-V'], ['--version']):
         print(VERSION); return 0
-    human = '--toon' not in argv and ('--human' in argv or sys.stdout.isatty())
+    human = '--human' in argv and '--toon' not in argv
     args = None
     def output(result):
         detailed = args is not None and (

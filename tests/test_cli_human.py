@@ -27,14 +27,14 @@ def cli(tmp_path, monkeypatch):
 
 def test_terminal_init_reports_paths_and_repeat_copy_count(cli):
     args, output, project = cli
-    assert main(args + ['project', 'init']) == 0
+    assert main(args + ['--human'] + ['project', 'init']) == 0
     text = output.getvalue()
     assert 'Crew project initialized' in text
     assert f'Project path: {project}' in text
     assert f'Configuration: {project}/.crew/project.yaml' in text
     assert 'files copied' in text
     output.seek(0); output.truncate()
-    assert main(args + ['project', 'init']) == 0
+    assert main(args + ['--human'] + ['project', 'init']) == 0
     assert '0 files copied' in output.getvalue()
     assert 'Existing files were preserved' in output.getvalue()
 
@@ -53,7 +53,7 @@ def test_pipe_output_keeps_toon(cli, monkeypatch):
 
 def test_terminal_error_keeps_exit_and_action(cli):
     args, output, _ = cli
-    assert main(args + ['bad-command']) == 2
+    assert main(args + ['--human'] + ['bad-command']) == 2
     assert 'Error:' in output.getvalue()
     assert 'crew --help' in output.getvalue()
 
@@ -72,12 +72,12 @@ def test_toon_human_conflict_across_parser_levels(cli):
 
 def test_human_empty_status_and_cooperative_stop(cli):
     args, output, _ = cli
-    assert main(args + ['run', 'new', '--id', 'demo', '--flow', 'readonly', '--items', 'A']) == 0
+    assert main(args + ['--human'] + ['run', 'new', '--id', 'demo', '--flow', 'readonly', '--items', 'A']) == 0
     output.seek(0); output.truncate()
-    assert main(args + ['status', 'demo']) == 0
+    assert main(args + ['--human'] + ['status', 'demo']) == 0
     assert 'Tasks: none' in output.getvalue()
     output.seek(0); output.truncate()
-    assert main(args + ['stop', 'demo']) == 0
+    assert main(args + ['--human'] + ['stop', 'demo']) == 0
     text = output.getvalue()
     assert 'Stop requested' in text
     assert 'orchestrator' in text
@@ -105,7 +105,7 @@ def test_init_next_command_validates_selected_context_from_another_directory(tmp
     project.mkdir()
     output = Terminal()
     monkeypatch.setattr(__name__ + '.OUTPUT', output)
-    assert main(['--global-dir', str(root), '--project', str(project), 'project', 'init']) == 0
+    assert main(['--human', '--global-dir', str(root), '--project', str(project), 'project', 'init']) == 0
     command = next(line.removeprefix('Next: ') for line in output.getvalue().splitlines() if line.startswith('Next: '))
     bin_dir = tmp_path / 'bin'
     bin_dir.mkdir()
@@ -126,7 +126,7 @@ def test_init_next_command_validates_selected_context_from_another_directory(tmp
 def test_generated_run_next_command_reuses_selected_context(cli):
     import shlex
     args, output, project = cli
-    assert main(args + ['run', 'new', '--id', 'demo', '--flow', 'readonly', '--items', 'A']) == 0
+    assert main(args + ['--human'] + ['run', 'new', '--id', 'demo', '--flow', 'readonly', '--items', 'A']) == 0
     command = next(line.strip().removeprefix('- ') for line in output.getvalue().splitlines() if 'crew ' in line)
     assert shlex.split(command) == ['crew', *args, 'run', 'start', 'demo']
 
@@ -149,9 +149,9 @@ def test_displayed_uppercase_decision_id_resolves_exact_saved_decision(cli, monk
     saved_id = next(iter(runtime.store.read_state()['decisions']))
     assert saved_id == 'BUG-42:readonly:s0:r0:decision'
     monkeypatch.setenv('CREW_ROLE', 'lead')
-    assert main(args + ['status', 'case']) == 0
+    assert main(args + ['--human'] + ['status', 'case']) == 0
     displayed_id = next(line.strip().removesuffix(':') for line in output.getvalue().splitlines() if ':readonly:s0:r0:decision' in line)
-    assert main(args + ['decide', 'case', displayed_id, 'approved']) == 0
+    assert main(args + ['--human'] + ['decide', 'case', displayed_id, 'approved']) == 0
     assert runtime.store.read_state()['decisions'][saved_id]['status'] == 'approved'
 
 
@@ -190,7 +190,7 @@ def test_control_summary_exposes_risks_without_runtime_internals(cli, active_run
     args, output, _ = cli
     runtime, _, _, task_id = active_run
     monkeypatch.setenv('CREW_ROLE', 'lead')
-    assert main(args + ['stop', 'summary']) == 0
+    assert main(args + ['--human'] + ['stop', 'summary']) == 0
     text = output.getvalue()
     assert 'Stop requested' in text and 'orchestrator' in text
     assert 'Control requests:' in text and 'stop' in text
@@ -213,7 +213,7 @@ def test_status_and_report_keep_authoritative_task_warnings(cli, active_run):
     _, _, _, task_id = active_run
     for command in ('status', 'report'):
         output.seek(0); output.truncate()
-        assert main(args + [command, 'summary']) == 0
+        assert main(args + ['--human'] + [command, 'summary']) == 0
         text = output.getvalue()
         assert task_id in text and 'native identity uncertain' in text
         assert 'Reconciliation needed: yes' in text
@@ -265,7 +265,7 @@ def test_dispatch_detail_hint_reads_state_without_requesting_another_dispatch(cl
     args, output, _ = cli
     runtime, _, _, task_id = active_run
     before = runtime.store.read_state()
-    assert main(args + ['dispatch', 'summary', task_id]) == 0
+    assert main(args + ['--human'] + ['dispatch', 'summary', task_id]) == 0
     command = next(line.removeprefix('Details: ') for line in output.getvalue().splitlines() if line.startswith('Details: '))
     assert shlex.split(command) == ['crew', *args, 'state', 'show', 'summary', '--full']
     assert runtime.store.read_state() == before
@@ -287,7 +287,7 @@ def test_runtime_details_command_reads_same_spaced_project_from_other_directory(
     output = Terminal()
     monkeypatch.setattr(__name__ + '.OUTPUT', output)
     args = ['--global-dir', str(root), '--project', str(project)]
-    assert main(args + ['status', 'selected']) == 0
+    assert main(args + ['--human'] + ['status', 'selected']) == 0
     displayed = next(line.removeprefix('Details: ') for line in output.getvalue().splitlines() if line.startswith('Details: '))
     assert shlex.split(displayed) == ['crew', *args, 'state', 'show', 'selected', '--full']
     bin_dir = tmp_path / 'bin'
@@ -305,3 +305,35 @@ def test_runtime_details_command_reads_same_spaced_project_from_other_directory(
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'run_id: selected\n' in result.stdout
 
+
+
+@pytest.mark.parametrize('command', [['project', 'init'], ['bad-command'], ['status', 'default'],
+                                      ['report', 'default'], ['status', 'missing'], ['config', 'validate']])
+def test_tty_default_is_identical_to_piped_toon(cli, monkeypatch, command):
+    """Implicit terminal selection must not change the default byte or error contract."""
+    from pathlib import Path
+    from crew.runtime import create_run, init_project
+    args, terminal, project = cli
+    root = Path(args[1])
+    init_project(root, project)
+    create_run(root, project, 'default', 'readonly', ['A'])
+    pipe = io.StringIO()
+    monkeypatch.setattr(__name__ + '.OUTPUT', pipe)
+    pipe_code = main(args + command)
+    monkeypatch.setattr(__name__ + '.OUTPUT', terminal)
+    terminal_code = main(args + command)
+    assert (terminal_code, terminal.getvalue()) == (pipe_code, pipe.getvalue())
+    assert terminal.getvalue().startswith(('project:', 'error:', 'run_id:', 'status:'))
+
+
+@pytest.mark.parametrize('command', ['status', 'report'])
+def test_tty_default_retains_projected_toon_instead_of_implicit_full_state(cli, active_run, command):
+    args, output, _ = cli
+    assert main(args + [command, 'summary']) == 0
+    text = output.getvalue()
+    assert text.startswith('run_id: summary\n')
+    assert 'native identity uncertain' not in text
+    assert 'config_digest:' not in text
+    output.seek(0); output.truncate()
+    assert main(args + ['--human', command, 'summary']) == 0
+    assert 'native identity uncertain' in output.getvalue()

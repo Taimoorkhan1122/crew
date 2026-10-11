@@ -12,7 +12,7 @@ crew_venv="$HOME/.local/share/crew/venv"
 crew_global_dir="$crew_venv/share/crew"
 crew_project="/absolute/path/to/your/project"
 
-CREW_ROLE=lead crew --global-dir "$crew_global_dir" --project "$crew_project" project init
+CREW_ROLE=lead crew --human --global-dir "$crew_global_dir" --project "$crew_project" project init
 crew --global-dir "$crew_global_dir" --project "$crew_project" config show
 crew --global-dir "$crew_global_dir" --project "$crew_project" config validate
 ```
@@ -33,7 +33,7 @@ Use repository files only. Write the assigned research report with evidence.
 EOF
 
 crew --global-dir "$crew_global_dir" --project "$crew_project" config show --run demo
-crew --project "$crew_project" status demo
+crew --human --project "$crew_project" status demo
 ```
 
 The expected run directory is `.crew/runs/demo/`. It contains fixed `run.yaml` configuration and authoritative `state.json` state.
@@ -52,7 +52,7 @@ Before this step, obtain user acceptance of configuration and authorization for 
 
 ```sh
 CREW_ROLE=lead crew --project "$crew_project" run start demo
-crew --project "$crew_project" status demo
+crew --human --project "$crew_project" status demo
 ```
 
 The Orchestrator receives the run path and tick command.
@@ -78,7 +78,7 @@ Missing, changed, or mismatched evidence prevents progress. Preserve completed a
 In the Lead context, use these commands:
 
 ```sh
-crew --project "$crew_project" status demo
+crew --human --project "$crew_project" status demo
 crew --project "$crew_project" state show demo --full
 crew --project "$crew_project" report demo --full
 crew --project "$crew_project" status demo --fields run_id,tasks
@@ -86,8 +86,8 @@ crew --project "$crew_project" status demo --fields run_id,tasks
 
 The output must contain records for `demo` only.
 Inspect the research artifact for useful content and the completion marker.
-Terminal output uses readable outcomes and lists. Piped output uses TOON.
-Use `--toon` for terminal TOON output. Use `--human` for readable piped output.
+TOON is the default output format in terminals and pipes.
+Use `--human` for readable outcomes and lists. Use `--toon` to select TOON explicitly.
 Detailed views use TOON: `--fields`, `--full`, `state show`, and `config show`.
 Readable summaries keep exact task and decision IDs. Use the displayed details command for complete records.
 Exit codes are 0 for success, 1 for runtime/configuration errors, and 2 for argument errors.

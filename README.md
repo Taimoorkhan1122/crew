@@ -9,8 +9,9 @@ The designated reviewer accepted the reduced release on 2026-10-10.
 Verification used fake Herdr adapters, temporary Git repositories, and real CLI subprocesses.
 Live Herdr dispatch and process cleanup remain unverified.
 
-Terminal commands show readable outcomes, paths, and lists. Piped commands retain TOON output.
-Use `--toon` to select TOON explicitly. Detailed views retain TOON.
+TOON is the default output format in terminals and pipes.
+Use `--human` for readable outcomes, paths, and lists. Detailed views retain TOON.
+Use `--toon` to select TOON explicitly.
 See the [CLI output contract](docs/runtime-cli.md).
 
 ## Quick installation
@@ -80,7 +81,7 @@ Replace `/path/to/your/project` below with that folder's path:
 cd "/path/to/your/project"
 crew_global_dir="$HOME/.local/share/crew/venv/share/crew"
 
-CREW_ROLE=lead crew --global-dir "$crew_global_dir" project init
+CREW_ROLE=lead crew --human --global-dir "$crew_global_dir" project init
 crew --global-dir "$crew_global_dir" config validate
 ```
 

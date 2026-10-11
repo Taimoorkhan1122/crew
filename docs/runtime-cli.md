@@ -7,9 +7,9 @@ Installed templates are under `share/crew`. Project settings are in `.crew/proje
 A run saves validated configuration in `.crew/runs/<id>/run.yaml`. State contains its digest.
 
 `crew --help` lists commands. Bare `crew` shows local runs and next actions.
-Terminal output uses readable outcomes, labeled paths, and lists. Output and errors remain on stdout.
-Piped output uses TOON. Use `--toon` to select TOON in a terminal.
-Use `--human` to select readable output for a pipe. Do not combine `--human` and `--toon`.
+TOON is the default output format in terminals and pipes. Output and errors remain on stdout.
+Use `--human` for readable outcomes, labeled paths, and lists. Use `--toon` to select TOON explicitly.
+Do not combine `--human` and `--toon`.
 These flags are permitted before or after subcommands.
 Exit codes are 0 for success, 1 for runtime/configuration errors, and 2 for argument errors.
 Read commands support `--fields`. Mutation commands reject `--fields` before changes.
@@ -26,12 +26,12 @@ Identifiers permit ASCII letters, digits, underscores, and hyphens.
 Examples:
 
 ```sh
-crew project init
+crew --human project init
 crew config validate
 crew config set resources.max_workers=2 --scope project
 crew run new --flow readonly --items DEMO --groups 1
 CREW_ROLE=lead crew run start RUN_ID
-crew status RUN_ID
+crew --human status RUN_ID
 CREW_ROLE=orchestrator crew tick RUN_ID
 CREW_ROLE=lead crew decide RUN_ID DECISION_ID approved
 CREW_ROLE=lead crew pause RUN_ID --team readonly
