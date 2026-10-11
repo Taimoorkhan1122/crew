@@ -1,4 +1,4 @@
-"""Noninteractive argparse interface; TOON data and errors on stdout."""
+"""Argparse interface with terminal presentation and structured pipe output."""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +17,7 @@ from crew.herdr import HerdrError
 from crew.resources import check_resources
 from crew.runtime import Runtime, config_set, create_run, identifier, init_project, project_config, safe_child
 from crew.toon import encode
+from crew.human import render
 
 VERSION = '0.1.0'
 
@@ -34,7 +35,7 @@ def parser():
     common = Parser(add_help=False)
     for flag in ('global-dir', 'project', 'fields'):
         common.add_argument('--' + flag, default=argparse.SUPPRESS)
-    for flag in ('full', 'toon'):
+    for flag in ('full', 'toon', 'human'):
         common.add_argument('--' + flag, action='store_true', default=argparse.SUPPRESS)
     root = Parser(prog='crew', description='Manage config-driven local agent teams.', parents=[common])
     root.add_argument('-v', '-V', '--version', action='version', version=VERSION)
@@ -173,28 +174,47 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv in (['-v'], ['-V'], ['--version']):
         print(VERSION); return 0
+    human = '--toon' not in argv and ('--human' in argv or sys.stdout.isatty())
+    args = None
+    def output(result):
+        detailed = args is not None and (
+            getattr(args, 'fields', None) or getattr(args, 'full', False)
+            or args.command == 'state'
+            or (args.command == 'config' and args.operation == 'show'))
+        print(render(result, command=getattr(args, 'command', None),
+                     operation=getattr(args, 'operation', None),
+                     context={'global_dir': str(Path(getattr(args, 'global_dir', Path.home() / '.config/crew')).absolute()),
+                              'project': str(Path(getattr(args, 'project', Path.cwd())).resolve()),
+                              'run': getattr(args, 'run', None), 'task': getattr(args, 'task', None),
+                              'decision': getattr(args, 'decision', None)}) if human and not detailed else encode(result))
     try:
         args = parser().parse_args(argv)
+        if getattr(args, 'human', False) and getattr(args, 'toon', False):
+            raise UsageError('--human and --toon are mutually exclusive')
         if getattr(args, 'fields', None) and args.command not in (None, 'status', 'state', 'report', 'config', 'resources', 'doctor', 'axi'):
             raise UsageError('--fields is supported only on read commands')
         if getattr(args, 'fields', None) and args.command == 'config' and args.operation == 'set':
             raise UsageError('--fields is supported only on read commands')
-        result = execute(args)
+        execution_args = args
+        if human and args.command in ('status', 'report') and not getattr(args, 'fields', None):
+            # Read authoritative task warnings for the human summary without changing TOON views.
+            execution_args = argparse.Namespace(**{**vars(args), 'full': True})
+        result = execute(execution_args)
         fields = getattr(args, 'fields', None)
         if fields:
             names = fields.split(',')
             if any(name not in result for name in names):
                 raise UsageError('unknown output field; use --full to inspect available fields')
             result = {name: result[name] for name in names}
-        print(encode(result))
+        output(result)
         return 0
     except UsageError as error:
-        print(encode({'error': str(error), 'help': ['crew --help']})); return 2
+        output({'error': str(error), 'help': ['crew --help']}); return 2
     except ValidationError as error:
         locations = ['.'.join(map(str, item['loc'])) + ': ' + item['msg'] for item in error.errors(include_input=False)]
-        print(encode({'error': 'invalid configuration', 'fields': locations, 'help': ['crew config validate']})); return 1
+        output({'error': 'invalid configuration', 'fields': locations, 'help': ['crew config validate']}); return 1
     except (OSError, ValueError, TypeError, KeyError, PermissionError, HerdrError) as error:
-        print(encode({'error': str(error), 'help': ['crew config validate', 'crew status <run> --full']})); return 1
+        output({'error': str(error), 'help': ['crew config validate', 'crew status <run> --full']}); return 1
 
 
 if __name__ == '__main__':

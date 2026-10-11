@@ -7,10 +7,20 @@ Installed templates are under `share/crew`. Project settings are in `.crew/proje
 A run saves validated configuration in `.crew/runs/<id>/run.yaml`. State contains its digest.
 
 `crew --help` lists commands. Bare `crew` shows local runs and next actions.
-Output and errors use TOON on stdout.
+Terminal output uses readable outcomes, labeled paths, and lists. Output and errors remain on stdout.
+Piped output uses TOON. Use `--toon` to select TOON in a terminal.
+Use `--human` to select readable output for a pipe. Do not combine `--human` and `--toon`.
+These flags are permitted before or after subcommands.
 Exit codes are 0 for success, 1 for runtime/configuration errors, and 2 for argument errors.
 Read commands support `--fields`. Mutation commands reject `--fields` before changes.
-`--full` shows authoritative state through status/report. `--toon` selects the default output format explicitly.
+`--full` shows authoritative state through status/report.
+`--fields`, `--full`, `state show`, and `config show` retain detailed TOON output, including with `--human`.
+Readable control output reports a request. It does not establish process completion.
+Readable output retains blocked tasks, unknown readiness, cleanup results, and retained-resource reasons.
+Runtime summaries show task counts and active or failed task details.
+Pending decisions keep their exact IDs. Completed safe records can appear as counts.
+Use the displayed `state show --full` command to inspect complete run records.
+Next commands retain the selected global and project paths. Paths use shell quoting.
 Identifiers permit ASCII letters, digits, underscores, and hyphens.
 
 Examples:

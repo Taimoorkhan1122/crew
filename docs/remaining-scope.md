@@ -40,4 +40,7 @@ They do not establish acceptance of the original full plan.
 
 Documentation changes occurred after executable acceptance.
 The archived review inventory describes the earlier snapshot.
-Runtime, tests, defaults, and package bytes remain the accepted executable baseline.
+The terminal CLI presentation is post-acceptance work. Independent review accepted this change on 2026-10-11.
+The review passed 380 tests and checked terminal output with disposable projects and fake adapters.
+Piped TOON output and detailed views retain the earlier contract.
+The earlier acceptance record applies to its recorded executable snapshot.

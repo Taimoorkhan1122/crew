@@ -86,7 +86,11 @@ crew --project "$crew_project" status demo --fields run_id,tasks
 
 The output must contain records for `demo` only.
 Inspect the research artifact for useful content and the completion marker.
-Read commands use TOON. Exit codes are 0 for success, 1 for runtime/configuration errors, and 2 for argument errors.
+Terminal output uses readable outcomes and lists. Piped output uses TOON.
+Use `--toon` for terminal TOON output. Use `--human` for readable piped output.
+Detailed views use TOON: `--fields`, `--full`, `state show`, and `config show`.
+Readable summaries keep exact task and decision IDs. Use the displayed details command for complete records.
+Exit codes are 0 for success, 1 for runtime/configuration errors, and 2 for argument errors.
 
 If a decision appears, present its exact ID and options to the user.
 After the user supplies a choice, the Lead relays that choice:

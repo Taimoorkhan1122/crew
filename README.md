@@ -9,6 +9,10 @@ The designated reviewer accepted the reduced release on 2026-10-10.
 Verification used fake Herdr adapters, temporary Git repositories, and real CLI subprocesses.
 Live Herdr dispatch and process cleanup remain unverified.
 
+Terminal commands show readable outcomes, paths, and lists. Piped commands retain TOON output.
+Use `--toon` to select TOON explicitly. Detailed views retain TOON.
+See the [CLI output contract](docs/runtime-cli.md).
+
 ## Quick installation
 
 Use Python 3.11 or newer and Git. The runtime requires POSIX file locks.

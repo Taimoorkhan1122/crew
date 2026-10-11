@@ -5,6 +5,10 @@ This guide installs the CLI and prepares configuration. Then use [getting starte
 For AI-assisted installation, copy the [installation prompt](../README.md#install-with-an-ai-assistant) into an assistant with local terminal access.
 Replace the project path before you send it. The prompt covers installation, project initialization, and configuration checks.
 
+Terminal output uses readable outcomes and labeled paths. Piped output uses TOON.
+Use `--toon` for terminal TOON output. Use `--human` for readable piped output.
+Detailed views retain TOON. See the [output contract](runtime-cli.md).
+
 ## Prerequisites
 
 - Use Python 3.11 or newer. The runtime uses POSIX file locks. This release has macOS verification; Windows support is unverified.
