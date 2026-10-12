@@ -120,6 +120,19 @@ def test_incomplete_tab_create_rethrows_original_error_with_partial_result():
     assert caught.value.launch_result.agent_session is None
 
 
+def test_oneshot_run_pane_empty_success_reports_started():
+    replies = iter([
+        response({"tab": {"tab_id": "w2:t3"}, "root_pane": {"pane_id": "w2:p4"}}),
+        response({"pane": {"pane_id": "w2:p4", "tab_id": "w2:t3", "terminal_id": "term"}}),
+        response({"process_info": {"pane_id": "w2:p4", "shell_pid": 123}}),
+        subprocess.CompletedProcess([], 0, "", ""),
+    ])
+    herdr = Herdr("lab", run=lambda *args, **kwargs: next(replies))
+    result = launch(herdr, workspace="w2", name="qa", cwd="/tmp", role=role("oneshot"), prompt="work")
+    assert result.status == "started"
+    assert result.process_identity == {"terminal_id": "term", "shell_pid": 123}
+
+
 def test_oneshot_failed_submission_keeps_captured_shell_identity():
     def run(argv, **kwargs):
         if argv[3:5] == ['tab', 'create']:

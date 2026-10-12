@@ -220,6 +220,24 @@ def test_status_and_report_keep_authoritative_task_warnings(cli, active_run):
         assert 'blocked: 1' in text and 'running: 1' in text
 
 
+def test_status_and_report_show_runner_progress_without_implicit_full_state(cli, active_run):
+    args, output, _ = cli
+    runtime, _, _, _ = active_run
+    runtime.store.update_state(lambda s: (s.update(runner={
+        'controller': 'script', 'status': 'running', 'pid': 4321,
+        'reason': 'waiting for an explicit user decision'}) or s))
+    for command in ('status', 'report'):
+        output.seek(0); output.truncate()
+        assert main(args + ['--human', command, 'summary']) == 0
+        text = output.getvalue()
+        assert 'Runner:' in text and 'waiting for an explicit user decision' in text
+    output.seek(0); output.truncate()
+    assert main(args + ['status', 'summary']) == 0
+    toon = output.getvalue()
+    assert 'runner:' in toon and 'waiting for an explicit user decision' in toon
+    assert 'config_digest:' not in toon
+
+
 def test_start_and_dispatch_summarize_real_results_without_claiming_new_completion(cli, active_run):
     from crew.human import render
     from test_runtime_cli import ready
@@ -332,7 +350,9 @@ def test_tty_default_retains_projected_toon_instead_of_implicit_full_state(cli, 
     assert main(args + [command, 'summary']) == 0
     text = output.getvalue()
     assert text.startswith('run_id: summary\n')
-    assert 'native identity uncertain' not in text
+    # Actionable launch and reconciliation errors stay in the projected view.
+    assert 'native identity uncertain' in text
+    # Full-state internals stay out of the projected view.
     assert 'config_digest:' not in text
     output.seek(0); output.truncate()
     assert main(args + ['--human', command, 'summary']) == 0

@@ -63,6 +63,59 @@ def test_prompt_timeout_inspects_once_without_resend(failure, output):
     assert [call[3:5] for call in calls] == [["agent", "prompt"], ["agent", "get"], ["agent", "read"]]
 
 
+def test_run_pane_accepts_observed_empty_success_without_resend():
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    Herdr("lab", run=run).run_pane("w2:p4", "echo hi")
+    assert len(calls) == 1
+    assert calls[0][3:5] == ["pane", "run"]
+
+
+def test_run_pane_accepts_structured_success_without_resend():
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return reply({"type": "ok"})
+
+    Herdr("lab", run=run).run_pane("w2:p4", "echo hi")
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("response", [
+    reply({}),
+    subprocess.CompletedProcess([], 0, json.dumps({"id": "cli:test", "result": "ok"}), ""),
+    subprocess.CompletedProcess([], 0, "{}", ""),
+])
+def test_run_pane_rejects_unsupported_structured_success(response):
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return response
+
+    with pytest.raises(HerdrError):
+        Herdr("lab", run=run).run_pane("w2:p4", "echo hi")
+    assert len(calls) == 1
+
+
+def test_run_pane_nonzero_submission_is_uncertain_and_never_resends():
+    calls = []
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess([], 1, "", '{"error":{"code":"pane_busy","message":"busy"}}')
+
+    with pytest.raises(HerdrError) as error:
+        Herdr("lab", run=run).run_pane("w2:p4", "echo hi")
+    assert error.value.code == "pane_busy"
+    assert len(calls) == 1
+
+
 def test_agent_read_preserves_json_error_on_nonzero_exit():
     response = subprocess.CompletedProcess([], 1, "", '{"error":{"code":"agent_not_found","message":"missing"}}')
     herdr = Herdr("lab", run=lambda *args, **kwargs: response)

@@ -127,7 +127,7 @@ Then follow [getting started](docs/quickstart.md) for your first readonly run.
 
 This UML diagram shows the CLI module and the main runtime classes.
 Detailed diagrams show [module relationships](docs/development.md#runtime-structure) and [role interactions](docs/lead-orchestrator-workflow.md#run-and-decision-sequence).
-Other diagrams show [task states](docs/runtime-cli.md#task-lifecycle) and [configuration objects](docs/config-migration.md#configuration-model).
+Other diagrams show [task states](docs/runtime-cli.md#task-lifecycle), [script controller](docs/runtime-cli.md#script-controller), and [configuration objects](docs/config-migration.md#configuration-model).
 
 ```mermaid
 classDiagram
@@ -146,7 +146,7 @@ classDiagram
 ```
 
 Configuration selects CLIs, models, effort, prompts, tools, resource limits, and flows.
-A run keeps a fixed configuration. Explicit Orchestrator tick advances the run. Crew has no event subscription service.
+A run keeps a fixed configuration. An explicit Orchestrator tick advances the run, or one script controller advances it. Crew has no event subscription service.
 
 Pause and stop use cooperative controls. Close removes resources only when ownership and completion evidence are sufficient.
 Active processes, uncertain resources, dirty worktrees, branches, and workspace shells can remain. Runtime output reports them.

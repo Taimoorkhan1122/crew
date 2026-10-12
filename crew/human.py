@@ -28,6 +28,12 @@ LABELS = {
     'pause_requested': 'Pause requested', 'stop_requested': 'Stop requested',
     'close_requested': 'Close requested', 'start_uncertain': 'Start uncertain',
     'exit_code': 'Exit code', 'launch': 'Launch', 'close': 'Close',
+    'runner': 'Runner', 'iterations': 'Iterations', 'last_flows': 'Last flows',
+    'errors': 'Errors', 'restarts': 'Restarts', 'controller': 'Controller',
+    'start_error': 'Start error', 'recovered_crashed_runner': 'Recovered crashed runner',
+    'previous_crashed': 'Previous crashed', 'resource_wait': 'Dispatch wait',
+    'runner_ownership': 'Runner ownership', 'runner_stale': 'Runner stale',
+    'runner_stale_reason': 'Runner stale reason', 'updated_at_ns': 'Last update ns',
 }
 DYNAMIC_MAPS = {'tasks', 'decisions', 'flows', 'control_requests', 'panes'}
 
@@ -90,7 +96,7 @@ def compact(record):
 def warnings(record):
     result = {key: value for key, value in record.items()
               if (key.endswith('_error') or key in ('reason', 'reconciliation_needed',
-                  'close_identity_changed', 'pause_requested', 'stop_requested')) and value}
+                  'close_identity_changed', 'pause_requested', 'stop_requested', 'resource_wait')) and value}
     if record.get('launch_intent') and record.get('status') not in ('running', 'done', 'failed', 'paused'):
         result['launch'] = 'pending or uncertain; inspect details before retry'
     if record.get('close_intent') and not record.get('closed'):
@@ -163,6 +169,20 @@ def runtime_lines(result, command, context):
         yield 'Orchestrator: ' + compact({key: orch[key] for key in ('status', 'pane_id', 'closed') if key in orch})
         if warnings(orch):
             yield '  ' + compact(warnings(orch))
+    if result.get('runner') or result.get('runner_ownership'):
+        runner = result.get('runner') or {}
+        yield 'Runner: ' + compact({key: runner[key] for key in
+                                    ('status', 'controller', 'pid', 'reason', 'updated_at_ns') if key in runner})
+        if result.get('runner_ownership'):
+            yield '  Ownership: ' + scalar(result['runner_ownership'])
+        if result.get('runner_stale'):
+            yield '  Runner stale: ' + scalar(result.get('runner_stale_reason', 'recorded running without ownership'))
+        if runner.get('errors'):
+            yield '  Last runner error: ' + scalar(runner['errors'][-1])
+        if runner.get('recovered_crashed_runner'):
+            yield '  Previous runner crashed; ownership recovered'
+    if result.get('start_error'):
+        yield 'Start error: ' + scalar(result['start_error'])
     requests = result.get('control_requests', {})
     if requests:
         yield 'Control requests:'

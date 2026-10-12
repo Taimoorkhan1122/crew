@@ -18,6 +18,23 @@ def _uses_capacity(item: dict) -> bool:
     return item.get("status") not in {"done", "failed", "paused"} and (item.get("status") == "running" or "launch_intent" in item)
 
 
+def _resource_reason(limits: Resources, report: ResourceReport, active: int) -> str:
+    """Name the prerequisite that holds a queued task, using the report at hand."""
+    if report.quota.status == "unknown":
+        return "model quota unknown"
+    if report.quota.status == "unavailable":
+        return "model quota below the minimum runway"
+    if report.free_memory_gb is None or report.load_per_core is None:
+        return "system resource reading unavailable"
+    if active >= limits.max_workers:
+        return "worker limit reached"
+    if report.free_memory_gb < limits.min_free_mem_gb:
+        return "free memory below the configured minimum"
+    if report.load_per_core > limits.max_load_per_core:
+        return "load per core above the configured maximum"
+    return "resources not ready"
+
+
 def dispatch(
     store: StateStore,
     task_id: str,
@@ -60,10 +77,18 @@ def dispatch(
     try:
         report = resource_check(limits, role.model, active_workers=active)
         ready = report.ready
+        reason = _resource_reason(limits, report, active)
     except Exception:
         ready = False
+        reason = "resource check unavailable"
     if not ready:
-        return dict(task)
+        # Reuse the report that already ran; do not probe quota again in this tick.
+        def wait(current):
+            item = current["tasks"][task_id]
+            if item["status"] == "queued" and "launch_intent" not in item:
+                item["resource_wait"] = reason
+            return current
+        return dict(store.update_state(wait)["tasks"][task_id])
 
     intent = uuid4().hex
     reserved = False
@@ -79,6 +104,7 @@ def dispatch(
             item["launch_started_at_ns"] = time.time_ns()
             item["mode"] = role.mode
             item["role"] = role_name or name
+            item.pop("resource_wait", None)
             reserved = True
         return current
     state = store.update_state(reserve)
@@ -89,6 +115,14 @@ def dispatch(
                 current["tasks"][task_id]["reconciliation_needed"] = True
                 return current
             state = store.update_state(mark_pending)
+            task = state["tasks"][task_id]
+        elif task["status"] == "queued":
+            def serialized(current):
+                item = current["tasks"][task_id]
+                if item["status"] == "queued" and "launch_intent" not in item:
+                    item["resource_wait"] = "worker limit reached"
+                return current
+            state = store.update_state(serialized)
             task = state["tasks"][task_id]
         return dict(task)
 
@@ -106,6 +140,7 @@ def dispatch(
 
     def finish(current):
         item = current["tasks"][task_id]
+        item.pop("resource_wait", None)
         # The intent remains even if Herdr failed before returning an identity.
         if result is not None:
             if result.tab_id:

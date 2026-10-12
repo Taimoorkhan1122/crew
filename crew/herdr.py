@@ -132,7 +132,31 @@ class Herdr:
             return PromptOutcome("uncertain", agent, output)
 
     def run_pane(self, pane: str, command: str) -> None:
-        self.command("pane", "run", pane, command)
+        """Submit one pane command and never resend it.
+
+        The observed successful response for this command is rc=0 with empty
+        output. A structured success object is also accepted. A nonzero exit or
+        an unexpected body stays uncertain; the caller retains ownership.
+        """
+        process = self._invoke("pane", "run", pane, command)
+        if process.returncode != 0:
+            raw = process.stderr or process.stdout
+            try:
+                payload = self._payload(raw)
+            except HerdrError:
+                raise HerdrError("command_failed", "Herdr pane run failed") from None
+            self._raise_error(payload)
+            return
+        raw = process.stdout.strip()
+        if not raw:
+            return
+        payload = self._payload(raw)
+        if "error" in payload:
+            self._raise_error(payload)
+        # Only the observed empty success or a supported nonempty result envelope is proof.
+        result = payload.get("result")
+        if not isinstance(result, dict) or not result:
+            raise HerdrError("invalid_json", "Herdr pane run result is missing")
 
     def close_owned(self, pane: str) -> None:
         if pane not in self.owned_panes:
