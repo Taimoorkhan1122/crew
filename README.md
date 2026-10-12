@@ -121,6 +121,7 @@ Then follow [getting started](docs/quickstart.md) for your first readonly run.
 | Understand configuration | [Configuration](docs/config-migration.md) |
 | Understand role responsibilities | [Lead and Orchestrator](docs/lead-orchestrator-workflow.md) |
 | Write documentation | [Documentation style](docs/documentation-style.md) |
+| Use the Crew agent skill | [Crew skill](docs/crew-skill.md) |
 
 ## Operating model
 

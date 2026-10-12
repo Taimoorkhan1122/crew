@@ -19,6 +19,7 @@ Detailed views retain TOON. See the [output contract](runtime-cli.md).
 - Obtain the source directory or a `crew_runner` wheel. This release has no documented package-registry distribution.
 
 The bundled roles select Claude and OpenCode. You can select other CLIs.
+Read [agent compatibility](agent-compatibility.md) for the current agent limits and gaps.
 Configure the roles that your flow needs. Make sure that your account permits the selected models.
 
 ## Guided installation

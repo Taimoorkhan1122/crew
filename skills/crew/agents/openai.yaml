@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crew"
+  short_description: "Run and supervise Crew agent teams"
+  default_prompt: "Use $crew to set up and supervise a Crew run."
