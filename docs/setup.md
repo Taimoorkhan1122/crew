@@ -14,7 +14,9 @@ Detailed views retain TOON. See the [output contract](runtime-cli.md).
 - Use Python 3.11 or newer. The runtime uses POSIX file locks. This release has macOS verification; Windows support is unverified.
 - For live launches, use a compatible Herdr session that is running.
 - Install and authenticate each selected agent CLI. Make the CLI available in new Herdr panes.
-- Supply a ready `quota-axi` record for each exact model ID. Unknown quota keeps dispatch queued, even with zero minimum runway.
+- Install `quota-axi` 0.1.60. Supply one fresh record for each exact model ID.
+  A `through_reset` runway is ready at every minimum. A `projected_exhaustion` runway must meet the minimum.
+  A stale, unknown, or unauthenticated record keeps dispatch queued, even with zero minimum runway.
 - Install Git for mutable lanes. A readonly flow can use a project without Git.
 - Obtain the source directory or a `crew_runner` wheel. This release has no documented package-registry distribution.
 
@@ -112,7 +114,7 @@ The installer prints the applicable instruction.
 Use a separate environment for the CLI and templates. Set `crew_package` to the wheel or source directory:
 
 ```sh
-crew_package="/path/to/crew_runner-0.1.2-py3-none-any.whl"
+crew_package="/path/to/crew_runner-0.1.3-py3-none-any.whl"
 # Local source alternative:
 # crew_package="/path/to/crew"
 
@@ -127,7 +129,7 @@ crew --version
 crew --help
 ```
 
-The expected version is `0.1.2`.
+The expected version is `0.1.3`.
 The global directory must contain `config.yaml`, `roles.yaml`, `teams.yaml`, `axis.yaml`, `flows/`, and `prompts/`.
 
 Add the equivalent PATH entry to your shell configuration.

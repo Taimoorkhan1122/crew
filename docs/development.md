@@ -147,6 +147,13 @@ For ownership and control changes, cover these cases:
 
 Make sure that CLI output reports unresolved resources correctly.
 
+## Quota model fixture
+
+`tests/test_resources.py` reads `tests/fixtures/quota-axi-0.1.60-models.json`.
+The fixture holds three real `quota-axi models --json` records.
+The snapshot is not live. Tests load fresh copies and change records as necessary.
+When the quota-axi schema changes, capture a new snapshot and update the fixture name and the tests.
+
 ## Build and verify a release
 
 Build from a separate source copy. This prevents backend metadata writes in the reviewed tree:

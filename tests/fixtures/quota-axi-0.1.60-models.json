@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-10-12T08:52:42.418Z",
+  "schemaVersion": 1,
+  "catalog": {
+    "version": "2026-10-08",
+    "provenance": "Curated editorial intelligence buckets informed by public provider materials and leaderboards, including Artificial Analysis (https://artificialanalysis.ai/). No third-party scores are reproduced."
+  },
+  "models": [
+    {
+      "provider": "claude",
+      "id": "claude-haiku-5-5",
+      "label": "Claude Haiku 5.5",
+      "intelligence": "medium",
+      "quotaScopes": [
+        "all_models"
+      ],
+      "effective": {
+        "scope": "all_models",
+        "status": "known",
+        "effectivePercentRemaining": 99,
+        "boundedBy": [
+          "five_hour",
+          "seven_day"
+        ],
+        "limitingWindowIds": [
+          "five_hour"
+        ],
+        "pace": {
+          "status": "behind",
+          "behindWindowIds": [
+            "five_hour",
+            "seven_day"
+          ],
+          "worstReservePercentPoints": 3.4991,
+          "worstReserveWindowId": "seven_day"
+        },
+        "runway": {
+          "status": "through_reset",
+          "projectionConfidence": "early"
+        },
+        "selection": {
+          "status": "known",
+          "spendPriority": 1.0411
+        }
+      },
+      "state": {
+        "status": "fresh",
+        "stale": false
+      }
+    },
+    {
+      "provider": "codex",
+      "id": "gpt-5.1-codex",
+      "label": "GPT-5.1-Codex",
+      "intelligence": "high",
+      "quotaScopes": [
+        "all_models"
+      ],
+      "effective": {
+        "scope": "all_models",
+        "status": "known",
+        "effectivePercentRemaining": 55,
+        "boundedBy": [
+          "five_hour",
+          "weekly"
+        ],
+        "limitingWindowIds": [
+          "weekly"
+        ],
+        "pace": {
+          "status": "ahead",
+          "aheadWindowIds": [
+            "five_hour",
+            "weekly"
+          ],
+          "worstReservePercentPoints": -29.9702,
+          "worstReserveWindowId": "weekly"
+        },
+        "runway": {
+          "status": "projected_exhaustion",
+          "usableRunwaySeconds": 10400,
+          "projectedExhaustedAt": "2026-10-12T11:46:01.992Z",
+          "limitingWindowId": "five_hour",
+          "projectionConfidence": "established"
+        },
+        "selection": {
+          "status": "known",
+          "spendPriority": -2.2886
+        }
+      },
+      "state": {
+        "status": "fresh",
+        "stale": false
+      }
+    },
+    {
+      "provider": "grok",
+      "id": "grok-4",
+      "label": "Grok 4",
+      "intelligence": "high",
+      "quotaScopes": [],
+      "state": {
+        "status": "auth_required",
+        "stale": false,
+        "authStatus": "unusable"
+      }
+    }
+  ]
+}

@@ -62,11 +62,25 @@ def quota_availability(
     if len(matches) != 1:
         return unknown
     record = matches[0]
-    effective = record.get("effective")
-    runway_info = effective.get("runway") if isinstance(effective, dict) else None
-    if record.get("status") != "ready" or not isinstance(runway_info, dict) or runway_info.get("status") != "available":
+
+    state = record.get("state")
+    if not isinstance(state, dict) or state.get("status") != "fresh" or state.get("stale") is True:
         return unknown
-    runway = record.get("usableRunwaySeconds")
+
+    effective = record.get("effective")
+    if not isinstance(effective, dict) or effective.get("status") != "known":
+        return unknown
+
+    runway_info = effective.get("runway")
+    if not isinstance(runway_info, dict):
+        return unknown
+    runway_status = runway_info.get("status")
+    if runway_status == "through_reset":
+        return QuotaAvailability("available", None)
+    if runway_status != "projected_exhaustion":
+        return unknown
+
+    runway = runway_info.get("usableRunwaySeconds")
     if isinstance(runway, bool) or not isinstance(runway, (int, float)):
         return unknown
     runway = float(runway)
