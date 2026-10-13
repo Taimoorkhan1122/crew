@@ -19,3 +19,5 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+.agents/skills
+.claude/skills

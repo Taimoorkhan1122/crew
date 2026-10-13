@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "building-python-clis": {
+      "source": "wdm0006/python-skills",
+      "sourceType": "github",
+      "skillPath": "skills/python/cli-development/SKILL.md",
+      "computedHash": "60a4a322ad989c9cd945c114a149ed1434a4fbe1ab09a50e7c275a1b25ad9ae0"
+    },
+    "improving-python-code-quality": {
+      "source": "wdm0006/python-skills",
+      "sourceType": "github",
+      "skillPath": "skills/python/code-quality/SKILL.md",
+      "computedHash": "d2d0cf099d9d3e90d8ef5737be239036db99fe16dd20aff98351fef48c791af4"
+    },
+    "optimizing-python-performance": {
+      "source": "wdm0006/python-skills",
+      "sourceType": "github",
+      "skillPath": "skills/python/performance/SKILL.md",
+      "computedHash": "35ebd9fc0b5217aa1e64f3679cbf81637911ddc2d450d4f864086285a6e0e096"
+    }
+  }
+}
