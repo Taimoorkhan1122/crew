@@ -156,12 +156,9 @@ class Runner:
                         last = result
                         state = self.runtime.store.read_state()
                         verdict, reason = self._evaluate(result, state)
-                        if verdict == 'complete':
-                            return self._finalize(result, reason, 0, status='complete')
-                        if verdict == 'failed':
-                            return self._finalize(result, reason, 1, status='failed')
-                        if verdict == 'stopped':
-                            return self._finalize(result, reason, 0, status='stopped')
+                        finished = self._finished(verdict, result, reason)
+                        if finished is not None:
+                            return finished
                         last_reason = reason
                         self._record_progress(result, iterations, reason)
                         current = self._fingerprint(result)
@@ -181,6 +178,16 @@ class Runner:
                 os.environ.pop('CREW_ROLE', None)
             else:
                 os.environ['CREW_ROLE'] = previous_role
+
+    def _finished(self, verdict, result, reason):
+        """Map a terminal verdict to its honest exit record. A nonterminal verdict returns None."""
+        if verdict == 'complete':
+            return self._finalize(result, reason, 0, status='complete')
+        if verdict == 'failed':
+            return self._finalize(result, reason, 1, status='failed')
+        if verdict == 'stopped':
+            return self._finalize(result, reason, 0, status='stopped')
+        return None
 
     def _fail(self, error, last):
         """Record a failure without claiming completion, even if state is unwritable."""
