@@ -114,7 +114,7 @@ The installer prints the applicable instruction.
 Use a separate environment for the CLI and templates. Set `crew_package` to the wheel or source directory:
 
 ```sh
-crew_package="/path/to/crew_runner-0.1.3-py3-none-any.whl"
+crew_package="/path/to/crew_runner-0.1.4-py3-none-any.whl"
 # Local source alternative:
 # crew_package="/path/to/crew"
 
@@ -129,7 +129,7 @@ crew --version
 crew --help
 ```
 
-The expected version is `0.1.3`.
+The expected version is `0.1.4`.
 The global directory must contain `config.yaml`, `roles.yaml`, `teams.yaml`, `axis.yaml`, `flows/`, and `prompts/`.
 
 Add the equivalent PATH entry to your shell configuration.
