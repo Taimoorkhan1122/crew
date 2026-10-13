@@ -8,13 +8,35 @@ A user-authorized live probe is permitted when a read-only check cannot decide.
 ## Start or launch is uncertain
 
 1. Read the saved state: `crew --project <PROJECT> state show <RUN_ID> --full`.
-2. Inspect `workspace`, `start_intent`, `start_uncertain`, and `orchestrator`.
+2. Inspect `workspace`, `start_intent`, `start_uncertain`, `start_error`, and `orchestrator` or `runner`.
 3. Inspect the live pane, tab, and session identity with the Herdr tools.
 4. Compare the saved identity with the live identity.
 
 A saved intent prevents a fresh retry.
 Do not create another workspace or launch another Orchestrator from an uncertain start.
+`start_error` gives the actionable cause.
+A script runner child can record progress before the parent acknowledgement.
+Trust the newer `runner` status over the parent result.
 Report the evidence, the limits, and the recovery choices.
+
+## Script runner does not progress
+
+1. Read `crew --project <PROJECT> status <RUN_ID>` and `state show <RUN_ID> --full`.
+2. Inspect `runner.status`, `runner.reason`, and `runner.errors`.
+3. Inspect `runner_ownership`. It is `active`, `free`, or `unknown`.
+4. A `runner_stale` result with `runner_ownership: free` means the process is gone.
+5. Inspect `resource_wait` on a queued task. It names the quota, memory, load, or worker-limit gate.
+6. Inspect pending decisions. Only Lead resolves them. The runner does not invent a choice.
+7. If the runner is stale or its process is gone, run `crew --project <PROJECT> advance <RUN_ID>` in the foreground.
+
+Recorded status is historical. The observed ownership decides liveness.
+A status or report read never writes state and never disturbs an active owner.
+
+A `running` runner can wait on a decision, a pause, or a prerequisite. This is normal.
+Do not run a manual `tick` on a script run. Runtime refuses the competing caller.
+Do not resend an uncertain start. Never resend a pane command.
+A failed worker stays recorded. Runtime does not dispatch it again.
+Do not use a blanket process or file removal command.
 
 ## Configuration checks
 

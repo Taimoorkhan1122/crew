@@ -1,6 +1,7 @@
 """Isolated runtime and subprocess CLI behavior."""
 import importlib.util
 import os
+from pathlib import Path
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -122,6 +123,20 @@ def test_low_memory(setup,monkeypatch):
     assert all(t['status']=='queued' for t in runtime.store.read_state()['tasks'].values())
     assert adapter.prompts==[]
 
+def test_dispatch_records_resource_and_quota_wait_reason(setup,monkeypatch):
+    runtime,_=make_run(setup); monkeypatch.setenv('CREW_ROLE','orchestrator')
+    adapter=FakeHerdr(); runtime.start(herdr=adapter)
+    unknown=lambda *a,**k:ResourceReport(8,.1,k['active_workers'],QuotaAvailability('unknown',None),False)
+    runtime.tick(herdr=adapter,resource_check=unknown)
+    tasks=runtime.store.read_state()['tasks']
+    assert tasks and all(t['status']=='queued' and t['resource_wait']=='model quota unknown' for t in tasks.values())
+    unavailable=lambda *a,**k:ResourceReport(8,.1,k['active_workers'],QuotaAvailability('unavailable',0),False)
+    runtime.tick(herdr=adapter,resource_check=unavailable)
+    tasks=runtime.store.read_state()['tasks']
+    assert all('quota below' in t['resource_wait'] for t in tasks.values())
+    assert adapter.prompts==[]
+
+
 @pytest.mark.parametrize('bad',['symlink','escape','stale','directory','shared'])
 def test_artifact_rejected(setup,monkeypatch,tmp_path,bad):
     runtime,path=make_run(setup); monkeypatch.setenv('CREW_ROLE','orchestrator')
@@ -184,6 +199,28 @@ def test_cli(setup):
     assert status.returncode==0 and 'run_id: one' in status.stdout
     denied=cli(setup,'tick','one',role='worker')
     assert denied.returncode==1 and 'orchestrator' in denied.stdout
+
+def test_cli_status_reports_actionable_launch_errors(setup,monkeypatch):
+    monkeypatch.setenv('CREW_ROLE','lead')
+    runtime,_=make_run(setup)
+    runtime.store.update_state(lambda s:(s['tasks'].update({'A:readonly:s0:r0:role0':{
+        'status':'blocked','team':'validator','role':'qa','launch_error':'launch boom',
+        'reconciliation_error':'receipt mismatch','resource_wait':'model quota unknown'}}) or s))
+    result=cli(setup,'status','run1')
+    assert result.returncode==0,result.stdout
+    assert 'launch boom' in result.stdout and 'receipt mismatch' in result.stdout
+    assert 'resource_wait' in result.stdout and 'model quota unknown' in result.stdout
+    runtime.store.update_state(lambda s:(s.update(start_uncertain=True,start_error='start boom') or s))
+    result=cli(setup,'status','run1')
+    assert result.returncode==0 and 'start boom' in result.stdout
+
+
+def test_cli_advance_rejects_extreme_delay(setup):
+    low=cli(setup,'advance','run1','--min-delay','0.01')
+    assert low.returncode==1 and 'min_delay' in low.stdout
+    high=cli(setup,'advance','run1','--min-delay','1','--max-delay','600')
+    assert high.returncode==1 and 'max_delay' in high.stdout
+
 
 def test_axi_pending(setup):
     assert importlib.util.find_spec('crew.cli') is not None,'CLI module missing'
@@ -348,6 +385,123 @@ def test_runtime_config_set_duplicate_assignment_rejected(setup):
     with pytest.raises(ValueError,match='duplicate YAML key'):
         config_set(*setup,'resources={max_workers: 1, max_workers: 3}',scope='project')
     assert not (setup[1]/'.crew/project.yaml').exists()
+
+
+def test_oneshot_reconciles_matching_receipt_despite_launch_error(setup,monkeypatch):
+    roles=yaml.safe_load((setup[0]/'roles.yaml').read_text())
+    roles['qa'].update(cli=sys.executable,mode='oneshot',args=['-c',
+        'import pathlib,re,sys; p=re.search(r"Output: (.+)",sys.argv[1])[1]; pathlib.Path(p).write_text("body\\nQA DONE\\n")', '{prompt}'])
+    _write_yaml(setup[0]/'roles.yaml',roles)
+    monkeypatch.setenv('CREW_ROLE','lead')
+    runtime,_=make_run(setup); monkeypatch.setenv('CREW_ROLE','orchestrator')
+    class Adapter(FakeHerdr):
+        def run_pane(self,pane,command):
+            result=subprocess.run(command,shell=True,capture_output=True,text=True)
+            assert result.returncode==0,result.stderr
+            raise RuntimeError('submission uncertain')
+    adapter=Adapter(); runtime.start(herdr=adapter)
+    runtime.tick(herdr=adapter,resource_check=ready)
+    blocked=runtime.store.read_state()['tasks']
+    assert all(t['status']=='blocked' and t.get('launch_error') for t in blocked.values())
+    result=runtime.tick(herdr=adapter,resource_check=ready)
+    assert result['flows']=={'A':'complete','B':'complete'}
+    assert all(t['status']=='done' for t in runtime.store.read_state()['tasks'].values())
+
+
+def test_start_uncertain_stores_error_and_blocks_retry(setup,monkeypatch):
+    monkeypatch.setenv('CREW_ROLE','lead')
+    runtime,_=make_run(setup)
+    class Failing(FakeHerdr):
+        def create_tab(self,*a,**kw): raise RuntimeError('runner tab unavailable')
+    with pytest.raises(ValueError,match='start uncertain'): runtime.start(herdr=Failing(),controller='script')
+    state=runtime.store.read_state()
+    assert state.get('start_uncertain') is True
+    assert 'runner tab unavailable' in state.get('start_error','')
+    calls=[]
+    class Recording(FakeHerdr):
+        def command(self,*a,**kw): calls.append(a); return {'workspace':{'workspace_id':'w1'}}
+        def create_tab(self,*a,**kw): calls.append(a); return ('w1:t1','w1:p1')
+    with pytest.raises(ValueError,match='start uncertain'): runtime.start(herdr=Recording(),controller='script')
+    assert calls==[]
+
+
+def _oneshot_uncertain(setup,monkeypatch,command,*,execute):
+    roles=yaml.safe_load((setup[0]/'roles.yaml').read_text())
+    roles['qa'].update(cli=sys.executable,mode='oneshot',args=['-c',command,'{prompt}'])
+    _write_yaml(setup[0]/'roles.yaml',roles)
+    monkeypatch.setenv('CREW_ROLE','lead')
+    runtime,path=make_run(setup)
+    monkeypatch.setenv('CREW_ROLE','orchestrator')
+    class Adapter(FakeHerdr):
+        def run_pane(self,pane,cmd):
+            if execute:
+                result=subprocess.run(cmd,shell=True,capture_output=True,text=True)
+                assert result.returncode==0,result.stderr
+            raise RuntimeError('submission uncertain')
+    adapter=Adapter(); runtime.start(herdr=adapter)
+    runtime.tick(herdr=adapter,resource_check=ready)
+    return runtime,path,adapter
+
+
+def _only_task(runtime):
+    return next(iter(runtime.store.read_state()['tasks'].values()))
+
+
+def _receipt(path,task):
+    return path/Path(task['artifact']).parent/('.exit-'+task['launch_intent']+'.json')
+
+
+def test_oneshot_uncertain_nonzero_receipt_marks_failed(setup,monkeypatch):
+    command='import pathlib,re,sys; p=re.search(r"Output: (.+)",sys.argv[1])[1]; pathlib.Path(p).write_text("body\\nQA DONE\\n"); sys.exit(1)'
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,command,execute=True)
+    assert _only_task(runtime)['status']=='blocked' and _only_task(runtime).get('launch_error')
+    runtime.tick(herdr=adapter,resource_check=ready)
+    tasks=runtime.store.read_state()['tasks']
+    assert all(t['status']=='failed' and t['exit_code']==1 for t in tasks.values())
+
+
+def test_oneshot_uncertain_missing_receipt_stays_blocked(setup,monkeypatch):
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,'pass',execute=False)
+    runtime.tick(herdr=adapter,resource_check=ready)
+    tasks=runtime.store.read_state()['tasks']
+    assert all(t['status']=='blocked' for t in tasks.values())
+
+
+def test_oneshot_uncertain_invalid_receipt_stays_blocked(setup,monkeypatch):
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,'pass',execute=False)
+    for task in runtime.store.read_state()['tasks'].values():
+        _receipt(path,task).write_text('{"nope": true}\n')
+    runtime.tick(herdr=adapter,resource_check=ready)
+    tasks=runtime.store.read_state()['tasks']
+    assert all(t['status']!='done' and t.get('reconciliation_error') for t in tasks.values())
+
+
+def test_oneshot_uncertain_wrong_intent_receipt_stays_blocked(setup,monkeypatch):
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,'pass',execute=False)
+    for task in runtime.store.read_state()['tasks'].values():
+        _receipt(path,task).write_text('{"launch_intent":"deadbeefdeadbeefdeadbeefdeadbeef","exit_code":0}')
+    runtime.tick(herdr=adapter,resource_check=ready)
+    tasks=runtime.store.read_state()['tasks']
+    assert all(t['status']!='done' and t.get('reconciliation_error') for t in tasks.values())
+
+
+def test_oneshot_uncertain_ownership_mismatch_stays_blocked(setup,monkeypatch):
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,'pass',execute=False)
+    for task in runtime.store.read_state()['tasks'].values():
+        _receipt(path,task).write_text('{"launch_intent":"'+task['launch_intent']+'","exit_code":0}')
+    runtime.store.update_state(lambda s:(s.update(owned_panes=[]) or s))
+    runtime.tick(herdr=adapter,resource_check=ready)
+    tasks=runtime.store.read_state()['tasks']
+    assert all(t['status']!='done' and t.get('reconciliation_error') for t in tasks.values())
+
+
+def test_oneshot_uncertain_stale_artifact_does_not_complete(setup,monkeypatch):
+    command='import pathlib,re,sys; p=re.search(r"Output: (.+)",sys.argv[1])[1]; pathlib.Path(p).write_text("body\\nQA DONE\\n")'
+    runtime,path,adapter=_oneshot_uncertain(setup,monkeypatch,command,execute=True)
+    for task in runtime.store.read_state()['tasks'].values():
+        os.utime(path/task['artifact'],ns=(1,1))
+    runtime.tick(herdr=adapter,resource_check=ready)
+    assert all(t['status']!='done' for t in runtime.store.read_state()['tasks'].values())
 
 
 def test_runtime_config_set_duplicate_existing_file_rejected(setup):

@@ -67,21 +67,34 @@ Also obtain authorization for the live resources.
 
 ```sh
 CREW_ROLE=lead crew --project <PROJECT> run start <RUN_ID>
+CREW_ROLE=lead crew --project <PROJECT> run start <RUN_ID> --controller script
 ```
 
 `run start` creates a Herdr workspace.
+The default controller is the legacy Orchestrator.
 It launches the configured Orchestrator one time.
-A configured `orchestrator` role is required.
+A configured `orchestrator` role is required for the legacy controller.
+`--controller script` starts one script runner instead of the Orchestrator.
+Runtime saves the controller choice with the start intent before side effects.
 
 ## 6. Advance the run
 
 ```sh
-CREW_ROLE=orchestrator crew tick <RUN_ID>
+CREW_ROLE=orchestrator crew --project <PROJECT> tick <RUN_ID>
+crew --project <PROJECT> advance <RUN_ID>
 ```
 
 `tick` is explicit. Crew has no background event driver.
 Repeat `tick` after worker progress or a user decision.
 `tick` reconciles evidence, applies controls, plans reachable work, and dispatches ready tasks.
+
+`advance` runs the script controller in the foreground.
+The runner holds one run lock for its lifetime.
+Manual `tick`, `dispatch`, and `ask` cannot compete with a script-controlled run.
+Use `advance` for that run, including recovery after a stopped runner.
+The runner reports its `status` and `reason` in status and report.
+Wait reasons can name a user decision, a pause, or an exact `resource_wait` gate.
+An exit code of 0 means completion or a user stop. An exit code of 1 means failure.
 
 ## Worker completion
 

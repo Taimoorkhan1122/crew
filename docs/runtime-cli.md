@@ -31,6 +31,8 @@ crew config validate
 crew config set resources.max_workers=2 --scope project
 crew run new --flow readonly --items DEMO --groups 1
 CREW_ROLE=lead crew run start RUN_ID
+CREW_ROLE=lead crew run start RUN_ID --controller script
+crew advance RUN_ID
 crew --human status RUN_ID
 CREW_ROLE=orchestrator crew tick RUN_ID
 CREW_ROLE=lead crew decide RUN_ID DECISION_ID approved
@@ -72,13 +74,89 @@ Artifacts must meet these conditions:
 Unknown or changed evidence blocks progress. Restored native IDs must match exactly.
 Runtime does not adopt another session automatically.
 
+Pane command submission accepts only observed success.
+The observed success is rc=0 with empty output.
+A supported nonempty result envelope is also accepted.
+A nonzero exit or an unsupported body stays uncertain.
+Runtime does not resend that submission.
+
 Oneshot launches use a wrapper that writes a private atomic exit receipt.
 The receipt identifies the reserved launch intent.
 A zero exit code and fresh owned output permit completion.
 A nonzero exit code marks failure. A missing receipt leaves the task waiting.
+A matching receipt reconciles a task even when launch reported an error.
+The exact intent, ownership, freshness, artifact fingerprint, and state guards must still match.
+Missing, invalid, or mismatched evidence cannot complete.
 The receipt helper does not let workers modify authoritative state.
 File evidence and state cannot form one atomic transaction.
 Independent tests passed; live process verification remains unperformed.
+
+## Script controller
+
+`crew run start RUN_ID --controller script` selects the script controller.
+The legacy Orchestrator remains the default controller.
+Runtime saves the controller choice with the start intent before side effects.
+It creates the workspace and starts one script runner.
+The runner runs in an unfocused Herdr tab with an explicit cwd, interpreter, and `PYTHONPATH`.
+`crew advance RUN_ID` runs the controller in the foreground.
+Use it as the recovery interface after a stopped or crashed runner.
+
+The runner holds one nonblocking lock for its lifetime.
+The runtime tick lock remains separate.
+A second runner cannot start for the same run.
+Manual `tick`, `dispatch`, and `ask` do not compete with a script-controlled run.
+Use `advance` instead. Runtime reports the conflict.
+Lead `decide`, `resume`, `pause`, `stop`, and `close` remain available.
+The runner observes an explicit Lead decision or resume on its next poll.
+
+The runner polls with finite bounds. The default delay is 1 to 10 seconds.
+`advance --min-delay` and `--max-delay` select other bounds.
+Each bound is between 0.1 and 60 seconds. Runtime rejects a value outside that range.
+Progress resets the delay to the minimum. Every unsettled iteration sleeps.
+A start, poll, sleep, or evaluation failure records `failed` and exits nonzero. Runtime never claims completion from a failure.
+The runner does not invent an approval.
+Pending decisions, pause, prerequisites, and resource gates stop progress without a false completion.
+Completion requires one flow status for every run item and every status `complete`.
+An empty or partial flow map does not complete.
+
+A queued worker can wait on a resource or quota gate.
+Runtime records an exact `resource_wait` reason from the resource report.
+Examples are `model quota unknown`, `model quota below the minimum runway`, and `worker limit reached`.
+Status and report show this reason in normal output.
+The runner reports `dispatch delayed:` with the reason.
+
+Runtime saves runner progress through the state store: `pid`, `controller`, `status`, `reason`, `iterations`, `last_flows`, and `errors`.
+Status, report, and `state show` expose this progress.
+Status and report also observe the run lock without writing state.
+The observed `runner_ownership` is `active`, `free`, or `unknown`.
+When the recorded status is `running` and no process holds the lock, runtime reports `runner_stale` with the saved last update.
+Recorded status stays historical. `state show` keeps that history.
+Do not use a stale pid alone as proof of life.
+A later `advance` records `recovered_crashed_runner` and continues.
+
+`crew advance` exit codes are 0 for completion or a user stop, 1 for a failure, and 128 plus the signal number for a signal.
+A failure stays visible with a nonzero exit.
+The failing task stays recorded. Runtime does not dispatch it again.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> launching: Start intent saved
+    launching --> started: Same intent still launching
+    started --> running: First tick recorded
+    running --> running: Waiting without invention
+    running --> complete: Every flow status complete
+    running --> failed: A worker failed or an exception
+    running --> stopped: Stop, close, or a signal
+    launching --> uncertain: Submission raised before progress
+    uncertain --> running: Recovery advance in foreground
+```
+
+The diagram shows controller status, not task status.
+`launching` becomes `started` only while the exact intent is still `launching`.
+A fast child can record `running` or `failed` first. Runtime keeps that newer evidence.
+An uncertain submission never resends the command.
+A separate investigation covers shell readiness for agent start. Runtime does not retry it automatically.
 
 ## Decisions and diagnostics
 
@@ -114,8 +192,10 @@ stateDiagram-v2
 
 Before-launch arrows require no reserved launch intent. Resume also requires no stop request.
 Stop can cancel a never-launched `paused` task.
-Unavailable resources keep tasks `queued`. Missing completion evidence keeps tasks `running`.
+Unavailable resources keep tasks `queued`. A `resource_wait` field names the exact gate.
+Missing completion evidence keeps tasks `running`.
 Nonzero receipt arrows apply to oneshot workers with an exact valid receipt.
+`blocked` can reach `done` after `launch_error` when the exact receipt and artifact guards match.
 
 Pause/stop on a launched task record cooperative intent.
 They do not suspend or kill a process. They can require reconciliation.

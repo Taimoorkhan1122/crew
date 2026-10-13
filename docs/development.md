@@ -30,6 +30,7 @@ See [setup](setup.md) for CLI availability in live Herdr panes.
 | Resources | `crew/resources.py` | Memory, load, worker limits, quota, and queues. |
 | Worktrees and controls | `crew/worktrees.py`, `crew/control.py` | Lane worktrees, ownership, and cleanup. |
 | Integration | `crew/runtime.py`, `crew/cli.py` | Run lifecycle, controls, CLI output, and tick. |
+| Controller | `crew/runner.py` | Script controller ownership, bounded polling, and honest exit. |
 | Verification | `tests/` | Temporary Git, fake Herdr, CLI subprocesses, and ownership tests. |
 
 ## Runtime structure
@@ -75,6 +76,11 @@ classDiagram
         process_info()
         close_owned()
     }
+    class Runner {
+        run()
+        poll()
+    }
+    Runner ..> Runtime : drives tick as the script owner
     Runtime *-- StateStore : state access
     Runtime ..> FlowBridge : persists verified proposals
     FlowBridge ..> FlowEngine : computes next task

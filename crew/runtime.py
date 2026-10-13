@@ -24,7 +24,7 @@ from crew.dispatch import dispatch as dispatch_task
 from crew.flow import next_tasks
 from crew.flow_state import persist_next_tasks
 from crew.herdr import Herdr
-from crew.launch import launch
+from crew.launch import LaunchResult, launch
 from crew.resources import check_resources
 from crew.state import StateStore
 from crew.tick import tick as tick_task
@@ -291,51 +291,108 @@ class Runtime:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
 
-    def start(self, *, herdr=None):
+    def start(self, *, herdr=None, controller='legacy'):
         require_lead()
+        if controller not in ('legacy', 'script'):
+            raise ValueError('unknown controller')
         with self.lock():
             state = self.check_config()
-            if state.get('workspace') or state.get('start_intent'):
+            if state.get('start_uncertain'):
+                raise ValueError('start uncertain; inspect authoritative state and workspace before retry: '
+                                 + str(state.get('start_error', 'unknown start error')))
+            if state.get('workspace'):
                 return state
+            if state.get('start_intent'):
+                raise ValueError('start already requested; inspect authoritative state and workspace before retry')
             if state.get('stop_requested') or state.get('close_requested'):
                 raise ValueError('stopped or closing run cannot start')
             adapter = herdr or Herdr(self.config.herdr_session)
-            if os.environ.get('CREW_ROLE') != 'orchestrator' and 'orchestrator' not in self.config.roles:
+            if (controller == 'legacy' and os.environ.get('CREW_ROLE') != 'orchestrator'
+                    and 'orchestrator' not in self.config.roles):
                 raise ValueError('configure orchestrator role before crew run start')
-            self.store.update_state(lambda s: {**s, 'start_requested': True, 'start_intent': uuid4().hex})
+            self.store.update_state(lambda s: {**s, 'start_requested': True, 'start_intent': uuid4().hex,
+                                               'controller': controller})
             try:
                 result = adapter.command('workspace', 'create', '--cwd', state['project'], '--label', state['run_id'], '--no-focus')
                 workspace = result.get('workspace', {}).get('workspace_id')
                 if not isinstance(workspace, str) or not workspace:
                     raise ValueError('workspace identity unavailable')
                 self.store.update_state(lambda s: {**s, 'workspace': workspace})
-                if os.environ.get('CREW_ROLE') != 'orchestrator':
-                    role = self.config.roles['orchestrator']
-                    prompt = self.role_prompt(role, state['project'])
-                    prompt += f'\nRun: {self.path}\nUse ' + shlex.join(['crew', '--project', state['project'], 'tick', state['run_id']]) + '. Never answer dialogs.\n'
-                    orch_intent = uuid4().hex
-                    self.store.update_state(lambda s: {**s, 'orchestrator': {
-                        'launch_intent': orch_intent, 'mode': role.mode, 'status': 'launching'}})
-                    launched = launch(RoleAdapter(adapter, {'CREW_ROLE': 'orchestrator'}), workspace=workspace, name=f'crew-{state["run_id"]}-orchestrator',
-                                      cwd=state['project'], role=role, prompt=prompt, axis=self.config.axis)
-                    def record_orchestrator(s):
-                        s['orchestrator'].update(asdict(launched))
-                        if launched.pane_id:
-                            s['owned_panes'] = sorted(set(s['owned_panes']) | {launched.pane_id})
-                        return s
-                    self.store.update_state(record_orchestrator)
+                if controller == 'script':
+                    self._start_script_runner(adapter, workspace)
+                elif os.environ.get('CREW_ROLE') != 'orchestrator':
+                    self._launch_orchestrator(adapter, state, workspace)
                 return self.store.read_state()
             except Exception as error:
-                partial = getattr(error, 'launch_result', None)
-                def retain_uncertain(s):
-                    s['start_uncertain'] = True
-                    if partial is not None and s.get('orchestrator'):
-                        s['orchestrator'].update(asdict(partial))
-                        if partial.pane_id:
-                            s['owned_panes'] = sorted(set(s['owned_panes']) | {partial.pane_id})
-                    return s
-                self.store.update_state(retain_uncertain)
+                self._retain_start_uncertainty(error)
                 raise ValueError('start uncertain; inspect authoritative state and workspace before retry') from None
+
+    def _launch_orchestrator(self, adapter, state, workspace):
+        """Launch the configured orchestrator agent through the accepted launch contract."""
+        role = self.config.roles['orchestrator']
+        prompt = self.role_prompt(role, state['project'])
+        prompt += f'\nRun: {self.path}\nUse ' + shlex.join(['crew', '--project', state['project'], 'tick', state['run_id']]) + '. Never answer dialogs.\n'
+        orch_intent = uuid4().hex
+        self.store.update_state(lambda s: {**s, 'orchestrator': {
+            'launch_intent': orch_intent, 'mode': role.mode, 'status': 'launching'}})
+        launched = launch(RoleAdapter(adapter, {'CREW_ROLE': 'orchestrator'}), workspace=workspace, name=f'crew-{state["run_id"]}-orchestrator',
+                          cwd=state['project'], role=role, prompt=prompt, axis=self.config.axis)
+        def record_orchestrator(s):
+            s['orchestrator'].update(asdict(launched))
+            if launched.pane_id:
+                s['owned_panes'] = sorted(set(s['owned_panes']) | {launched.pane_id})
+            return s
+        self.store.update_state(record_orchestrator)
+
+    def _retain_start_uncertainty(self, error):
+        """Record an uncertain start without overwriting proven child progress."""
+        partial = getattr(error, 'launch_result', None)
+        def retain_uncertain(s):
+            s['start_error'] = str(error)
+            record = s.get('orchestrator') or s.get('runner')
+            if partial is not None and partial.pane_id:
+                s['owned_panes'] = sorted(set(s['owned_panes']) | {partial.pane_id})
+            # A child that already left `launching` proved progress. Keep
+            # its evidence; do not overwrite it with the parent's uncertainty.
+            if record is not None and record.get('status') not in ('launching', None):
+                return s
+            s['start_uncertain'] = True
+            if partial is not None and record is not None:
+                record.update(asdict(partial))
+            return s
+        self.store.update_state(retain_uncertain)
+
+    def _start_script_runner(self, adapter, workspace):
+        """Launch the ordinary script controller once as an unfocused pane command."""
+        state = self.store.read_state()
+        run_id = state['run_id']
+        module_root = str(Path(__file__).resolve().parent.parent)
+        command = shlex.join(['env', 'CREW_ROLE=orchestrator', 'PYTHONPATH=' + module_root,
+                              sys.executable, '-m', 'crew.cli', '--project', state['project'], 'advance', run_id])
+        try:
+            tab_id, pane_id = adapter.create_tab(workspace, state['project'], f'crew-{run_id}-runner')
+        except Exception as error:
+            partial = LaunchResult(getattr(error, 'tab_id', None), getattr(error, 'pane_id', None), 'uncertain')
+            error.launch_result = partial
+            raise
+        runner_intent = uuid4().hex
+        def record(s):
+            s.setdefault('runner', {})
+            s['runner'].update({'launch_intent': runner_intent, 'mode': 'script', 'controller': 'script',
+                                'status': 'launching', 'tab_id': tab_id, 'pane_id': pane_id})
+            s['owned_panes'] = sorted(set(s['owned_panes']) | {pane_id})
+            return s
+        self.store.update_state(record)
+        adapter.run_pane(pane_id, command)
+        # A fast child can record progress before this acknowledgement. Only
+        # acknowledge the same launch intent while it is still launching.
+        def ack(s):
+            runner = s.get('runner') or {}
+            if runner.get('launch_intent') == runner_intent and runner.get('status') == 'launching':
+                runner['status'] = 'started'
+                s['runner'] = runner
+            return s
+        self.store.update_state(ack)
 
     def role_prompt(self, role, project):
         if not role.prompt:
@@ -410,6 +467,8 @@ class Runtime:
             raise ValueError('question and two distinct options required')
         with self.lock():
             state = self.check_config()
+            if state.get('controller') == 'script':
+                raise ValueError('script controller owns this run; user questions are not available')
             decision_id = 'ask-' + digest([question, options])[:16]
             def update(current):
                 current['decisions'].setdefault(decision_id, {'kind': 'question', 'status': 'pending',
@@ -568,10 +627,9 @@ class Runtime:
         task = state['tasks'][task_id]
         if task['status'] not in ('running', 'blocked'):
             return
-        if task.get('reconciliation_needed') and not (
-                (task.get('stop_requested') or task.get('pause_requested'))
-                and not task.get('launch_error') and not task.get('reconciliation_error')):
-            return
+        # A matching receipt is completion evidence even when launch reported an
+        # error. Attempt reconciliation each tick; invalid or missing evidence
+        # stays blocked below and never completes.
         if (not task.get('launch_intent') or not task.get('pane_id') or not task.get('tab_id')
                 or state.get('owned_panes', []).count(task['pane_id']) != 1
                 or any(key != task_id and other.get('pane_id') == task['pane_id'] for key, other in state['tasks'].items())):
@@ -596,9 +654,11 @@ class Runtime:
             return current
         GuardStore(self.store, state, verify).update_state(complete)
 
-    def dispatch(self, task_id, *, herdr=None, resource_check=check_resources):
+    def dispatch(self, task_id, *, herdr=None, resource_check=check_resources, controller=None):
         require_orchestrator()
         with self.lock():
+            if self.store.read_state().get('controller') == 'script' and controller != 'script':
+                raise ValueError('script controller owns this run; use crew advance')
             return self._dispatch(task_id, herdr or Herdr(self.config.herdr_session), resource_check, retry_worktree=True)
 
     def _dispatch(self, task_id, adapter, resource_check, *, retry_worktree=False):
@@ -633,7 +693,12 @@ class Runtime:
         if any(t.get('launch_intent') and t['status'] not in ('done', 'failed', 'paused')
                and (not role.readonly or not self.config.roles[t['role']].readonly)
                for key, t in state['tasks'].items() if key != task_id):
-            return task
+            def serialized(current):
+                item = current['tasks'][task_id]
+                if item['status'] == 'queued' and 'launch_intent' not in item:
+                    item['resource_wait'] = 'mutable dispatch serialized behind an active writer'
+                return current
+            return dict(self.store.update_state(serialized)['tasks'][task_id])
         cwd = task.get('launch_cwd', state['project'])
         lane = None
         if not role.readonly and task['status'] == 'queued' and not task.get('launch_intent'):
@@ -685,10 +750,29 @@ class Runtime:
             cwd=cwd, role=role, prompt=prompt, limits=self.config.resources,
             axis=self.config.axis, resource_check=resource_check, launch_role=launch_bound)
 
-    def tick(self, *, herdr=None, resource_check=check_resources):
+    def _plan_item(self, state, item):
+        """Persist the next flow proposal for one item against verified evidence."""
+        snapshot = self.check_config()
+        try:
+            evidence = self.evidence(snapshot, item)
+            def verify():
+                frozen = CrewConfig.model_validate(decode_yaml((self.path / 'run.yaml').read_text()))
+                if digest(frozen.model_dump(by_alias=True)) != snapshot['config_digest']:
+                    raise ValueError('frozen configuration changed during planning')
+                if self.evidence(snapshot, item) != evidence:
+                    raise ValueError('artifact changed during planning')
+            result = persist_next_tasks(EvidenceStore(self.store, verify), self.config, state['flow'], evidence,
+                                        item_id=item, expected_snapshot=snapshot)
+            return result.status
+        except (OSError, UnicodeError, ValueError, KeyError):
+            return 'blocked'
+
+    def tick(self, *, herdr=None, resource_check=check_resources, controller=None):
         require_orchestrator()
         with self.lock():
             state = self.check_config()
+            if state.get('controller') == 'script' and controller != 'script':
+                raise ValueError('script controller owns this run; use crew advance')
             adapter = herdr or Herdr(self.config.herdr_session)
             if not state.get('workspace'):
                 raise ValueError('run has no verified workspace; use crew run start')
@@ -698,20 +782,7 @@ class Runtime:
                 self.reconcile(adapter, task_id)
             flows = {}
             for item in state['items']:
-                snapshot = self.check_config()
-                try:
-                    evidence = self.evidence(snapshot, item)
-                    def verify():
-                        frozen = CrewConfig.model_validate(decode_yaml((self.path / 'run.yaml').read_text()))
-                        if digest(frozen.model_dump(by_alias=True)) != snapshot['config_digest']:
-                            raise ValueError('frozen configuration changed during planning')
-                        if self.evidence(snapshot, item) != evidence:
-                            raise ValueError('artifact changed during planning')
-                    result = persist_next_tasks(EvidenceStore(self.store, verify), self.config, state['flow'], evidence,
-                                                item_id=item, expected_snapshot=snapshot)
-                    flows[item] = result.status
-                except (OSError, UnicodeError, ValueError, KeyError):
-                    flows[item] = 'blocked'
+                flows[item] = self._plan_item(state, item)
             state = self.store.read_state()
             for task_id, task in state['tasks'].items():
                 if task['status'] == 'queued' and not task.get('launch_intent'):

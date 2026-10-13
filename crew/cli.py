@@ -59,9 +59,12 @@ def parser():
     p.add_argument('--items', required=True); p.add_argument('--groups', type=int, default=1)
     p = add(operations, 'start', 'Create workspace and launch configured orchestrator once.')
     p.add_argument('run')
+    p.add_argument('--controller', choices=['legacy', 'script'], default='legacy')
     for name in ('status', 'report', 'tick'):
         p = add(commands, name, name.capitalize() + ' a run. Tick requires orchestrator role.')
         p.add_argument('run')
+    p = add(commands, 'advance', 'Run the foreground script controller until completion or a control stops it.')
+    p.add_argument('run'); p.add_argument('--min-delay', type=float, default=1.0); p.add_argument('--max-delay', type=float, default=10.0)
     state = add(commands, 'state', 'Read authoritative run state.')
     p = add(state.add_subparsers(dest='operation', required=True), 'show', 'Show authoritative run state.')
     p.add_argument('run')
@@ -158,13 +161,36 @@ def execute(args):
     if command in ('status', 'state', 'report'):
         state = runtime.store.read_state()
         if getattr(args, 'full', False) or command == 'state': return state
-        return {'run_id': state['run_id'], 'flow': state['flow'], 'workspace': state.get('workspace'),
-                'tasks': [{'id': key, 'status': task['status'], 'team': task['team'], 'role': task['role']}
-                          for key, task in state['tasks'].items()],
-                'decisions': state['decisions'], 'control_requests': state.get('control_requests', {}),
-                'cleanup': state.get('cleanup', {}),
-                'help': [f'crew state show {state["run_id"]} --full']}
-    if command == 'run': return runtime.start()
+        def task_view(key, task):
+            view = {'id': key, 'status': task['status'], 'team': task['team'], 'role': task['role']}
+            for field in ('launch_error', 'reconciliation_error', 'resource_wait', 'exit_code'):
+                if task.get(field) is not None:
+                    view[field] = task[field]
+            return view
+        summary = {'run_id': state['run_id'], 'flow': state['flow'], 'workspace': state.get('workspace'),
+                   'controller': state.get('controller', 'legacy'),
+                   'tasks': [task_view(key, task) for key, task in state['tasks'].items()],
+                   'decisions': state['decisions'], 'control_requests': state.get('control_requests', {}),
+                   'runner': state.get('runner', {}),
+                   'cleanup': state.get('cleanup', {}),
+                   'help': [f'crew state show {state["run_id"]} --full']}
+        if state.get('start_uncertain'):
+            summary['start_uncertain'] = True
+        if state.get('start_error'):
+            summary['start_error'] = state['start_error']
+        # Recorded status is historical. Ownership is an observed fact.
+        if state.get('controller') == 'script' or state.get('runner'):
+            from crew.runner import observe_ownership
+            runner = state.get('runner') or {}
+            ownership = observe_ownership(runtime.path)
+            summary['runner_ownership'] = ownership
+            if runner.get('status') == 'running' and ownership != 'active':
+                summary['runner_stale'] = True
+                summary['runner_stale_reason'] = (
+                    'recorded running but no process holds the run lock'
+                    if ownership == 'free' else 'recorded running; ownership is unknown')
+        return summary
+    if command == 'run': return runtime.start(controller=args.controller)
     if command == 'tick': return runtime.tick()
     if command == 'dispatch': return runtime.dispatch(args.task)
     if command == 'decide': return runtime.decide(args.decision, args.choice)
@@ -202,7 +228,12 @@ def main(argv=None):
             # Read authoritative task warnings for the human summary without changing TOON views.
             execution_args = argparse.Namespace(**{**vars(args), 'full': True})
         return_code = 0
-        if args.command == 'update':
+        if args.command == 'advance':
+            from crew.runner import Runner, RunnerLimits
+            project = Path(getattr(args, 'project', Path.cwd())).resolve()
+            limits = RunnerLimits(min_delay=args.min_delay, max_delay=args.max_delay)
+            result, return_code = Runner(run_path(project, args.run), limits=limits).run()
+        elif args.command == 'update':
             from crew.update import run_update
             result, return_code = run_update(check=args.check)
         else:

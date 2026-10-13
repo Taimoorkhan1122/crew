@@ -9,7 +9,7 @@ metadata:
 
 Crew runs configured agent teams through Herdr.
 The Lead supervises work and presents user decisions.
-One Orchestrator advances each run.
+One Orchestrator, or one script controller, advances each run.
 Workers produce assigned artifacts.
 
 ## Identify the setup first
@@ -76,6 +76,11 @@ Code with the same operating system user can bypass it.
 | Lead (`CREW_ROLE=lead`) | Initialize projects, create runs, record controls, and resolve decisions. Only Lead resolves decisions. |
 | Orchestrator (`CREW_ROLE=orchestrator`) | Advance a run with explicit `tick`, and dispatch work. |
 | Worker | Read the assigned input and write the assigned artifact. Runtime sets this context. |
+
+A run can use `run start --controller script` instead of the legacy Orchestrator.
+Then `crew advance <RUN_ID>` runs the script controller.
+Manual `tick`, `dispatch`, and `ask` do not compete with a script-controlled run.
+Only Lead resolves a decision. The runner observes it on the next poll.
 
 A user can also ask the current agent to do ordinary work.
 Do not refuse ordinary work from a role name alone.

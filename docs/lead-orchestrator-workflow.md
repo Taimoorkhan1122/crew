@@ -26,6 +26,49 @@ Report missing inputs, prerequisites, uncertain launches, and retained resources
 Before a retry, inspect the uncertain identity.
 Flow approval does not make unsupported external action roles executable.
 
+## Script controller
+
+A run can use a script controller instead of an LLM Orchestrator.
+`crew run start RUN_ID --controller script` saves the controller choice with the start intent.
+Runtime creates the workspace and starts one script runner in an unfocused Herdr tab.
+The runner drives the same tick path.
+It holds one run lock for its lifetime.
+Manual `tick`, `dispatch`, and `ask` cannot compete with the script runner.
+`crew advance RUN_ID` runs the runner in the foreground. Use it to recover a stopped runner.
+Lead decisions and controls stay explicit. The runner observes them on its next poll.
+Completion requires every run item flow complete after verified evidence.
+A failure exits nonzero and stays visible. The runner does not dispatch a failed worker again.
+A queued worker can wait on a resource or quota gate. Status shows the exact `resource_wait` reason.
+
+```mermaid
+sequenceDiagram
+    actor Lead
+    participant CLI as crew.cli
+    participant Runtime as Crew Runtime
+    participant Herdr
+    participant Runner as crew.runner
+    participant Worker
+    Lead->>CLI: run start --controller script
+    CLI->>Runtime: start with controller script
+    Runtime->>Runtime: Save controller and start intent
+    Runtime->>Herdr: Create workspace and runner tab
+    Herdr->>Runner: crew advance RUN_ID
+    Runner->>Runtime: tick as the script owner
+    Runtime->>Herdr: Launch a ready worker
+    Herdr->>Worker: Input, output and marker
+    Worker->>Worker: Write artifact body and marker
+    Runner->>Runtime: Poll with bounded backoff
+    Runtime-->>Runner: Progress or an exact pending gate
+    Note over Runner,Runtime: No invented approval and no resend
+    Lead->>Runtime: decide the exact ID explicitly
+    Runner->>Runtime: The next poll observes the decision
+```
+
+The runtime self-calls use `StateStore`. The runner does not write state files directly.
+The runner records `pid`, `status`, `reason`, `iterations`, `last_flows`, and `errors`.
+A recorded `running` runner with a free lock is stale. Runtime records that recovery honestly.
+A separate investigation covers shell readiness for agent start. Runtime does not retry it automatically.
+
 ## Workers
 
 Workers receive input, output, and completion marker instructions.
