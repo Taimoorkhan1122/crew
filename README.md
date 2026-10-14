@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **Archived:** This project has been superseded by [Herdr-Crew](https://github.com/Taimoorkhan1122/herdr-crew), a simpler, minimal implementation of the same core ideas. All future development has moved to the new repository.
+
 ![Crew: Agent teams. One orchestrator. Lead, orchestrate, execute.](assets/crew-banner.png)
 
 # Crew
